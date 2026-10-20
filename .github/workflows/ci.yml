@@ -59,6 +59,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - name: Download verified installers
         uses: actions/download-artifact@v4
         with:
