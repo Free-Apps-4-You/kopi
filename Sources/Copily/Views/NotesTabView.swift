@@ -240,36 +240,36 @@ struct NoteCardView: View {
     }
 
     private var cardContent: some View {
-    VStack(alignment: .leading, spacing: 8) {
-        HStack(spacing: 5) {
-            Image(systemName: note.isProtected ? "lock.fill" : "note.text")
-                .copilyTooltip(note.isProtected ? "Locked note" : "Apple Notes")
-                .foregroundStyle(note.isProtected ? Color.orange : CopilyTheme.accent)
-                .frame(width: 20, height: 20)
-                .background {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(CopilyTheme.accentWash)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 5) {
+                Image(systemName: note.isProtected ? "lock.fill" : "note.text")
+                    .copilyTooltip(note.isProtected ? "Locked note" : "Apple Notes")
+                    .foregroundStyle(note.isProtected ? Color.orange : CopilyTheme.accent)
+                    .frame(width: 20, height: 20)
+                    .background {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(CopilyTheme.accentWash)
+                    }
+                Text("Apple Notes")
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                if note.isShared { Image(systemName: "person.2.fill").accessibilityLabel("Shared").copilyTooltip("Shared note") }
+                if note.hasRichContent || note.attachmentCount > 0 {
+                    Image(systemName: "paperclip").accessibilityLabel("Rich content").copilyTooltip("Rich content")
                 }
-            Text("Apple Notes")
-                .foregroundStyle(.secondary)
-            Spacer(minLength: 0)
-            if note.isShared { Image(systemName: "person.2.fill").accessibilityLabel("Shared").copilyTooltip("Shared note") }
-            if note.hasRichContent || note.attachmentCount > 0 {
-                Image(systemName: "paperclip").accessibilityLabel("Rich content").copilyTooltip("Rich content")
             }
-        }
-        .font(.system(size: 9.5, weight: .medium))
-        .padding(.trailing, 24)
-        Text(note.title.isEmpty ? "Untitled" : note.title)
-            .font(.system(size: 13, weight: .semibold))
-            .lineSpacing(1)
-            .lineLimit(2)
-        Text(note.isProtected ? "Unlock this note in Apple Notes." : note.excerpt)
-            .font(.system(size: 11))
-            .lineSpacing(1.5)
-            .foregroundStyle(.secondary)
-            .lineLimit(4)
-        Spacer(minLength: 0)
+            .font(.system(size: 9.5, weight: .medium))
+            .padding(.trailing, 24)
+            Text(note.title.isEmpty ? "Untitled" : note.title)
+                .font(.system(size: 13, weight: .semibold))
+                .lineSpacing(1)
+                .lineLimit(2)
+            Text(note.isProtected ? "Unlock this note in Apple Notes." : note.excerpt)
+                .font(.system(size: 11))
+                .lineSpacing(1.5)
+                .foregroundStyle(.secondary)
+                .lineLimit(4)
+            Spacer(minLength: 0)
     }
     .padding(CopilyTheme.cardPadding)
     .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -278,18 +278,18 @@ struct NoteCardView: View {
     }
 
     private var cardFooter: some View {
-    HStack(spacing: 5) {
-        Image(systemName: "folder").copilyTooltip("Notes folder")
-        Text(note.folderName ?? model.folderName(for: note.folderID) ?? "Notes")
-            .lineLimit(1)
-        Spacer(minLength: 4)
-        Text(CardTimestamp.description(for: note.modificationDate))
-            .font(.system(size: 9, weight: .medium))
-            .monospacedDigit()
-            .lineLimit(1)
-        CardActionsMenu(title: "Note actions") {
-            actions
-        }
+        HStack(spacing: 5) {
+            Image(systemName: "folder").copilyTooltip("Notes folder")
+            Text(note.folderName ?? model.folderName(for: note.folderID) ?? "Notes")
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            Text(CardTimestamp.description(for: note.modificationDate))
+                .font(.system(size: 9, weight: .medium))
+                .monospacedDigit()
+                .lineLimit(1)
+            CardActionsMenu(title: "Note actions") {
+                actions
+            }
     }
     .font(.system(size: 9.5, weight: .medium))
     .foregroundStyle(.secondary)
