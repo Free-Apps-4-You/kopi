@@ -11,6 +11,11 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 product="Kopi"
 bundle="$root/dist/$product.app"
 configuration="release"
+architecture="$(uname -m)"
+case "$architecture" in
+    arm64|x86_64) ;;
+    *) echo "error: unsupported architecture: $architecture" >&2; exit 1 ;;
+esac
 
 swift build --configuration "$configuration" --product "$product" --package-path "$root"
 
@@ -18,6 +23,17 @@ binPath="$(swift build --configuration "$configuration" --show-bin-path --packag
 executable="$binPath/$product"
 if [[ ! -x "$executable" ]]; then
     echo "error: $executable was not built" >&2
+    exit 1
+fi
+if [[ "$(lipo -archs "$executable")" != "$architecture" ]]; then
+    echo "error: executable architecture does not match $architecture" >&2
+    exit 1
+fi
+
+minimumOS="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$root/Packaging/Info.plist")"
+binaryMinimumOS="$(xcrun vtool -show-build "$executable" | awk '$1 == "minos" { print $2 }')"
+if [[ "$binaryMinimumOS" != "$minimumOS" ]]; then
+    echo "error: executable requires macOS $binaryMinimumOS; bundle declares $minimumOS" >&2
     exit 1
 fi
 
@@ -32,4 +48,4 @@ printf 'APPL????' > "$bundle/Contents/PkgInfo"
 
 codesign --force --sign - --entitlements "$root/Packaging/Kopi.entitlements" "$bundle"
 
-echo "Built $bundle"
+echo "Built $bundle ($architecture, macOS $minimumOS+)"

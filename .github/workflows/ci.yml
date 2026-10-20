@@ -16,12 +16,22 @@ concurrency:
 
 jobs:
   test-and-build:
-    runs-on: macos-15
+    name: Test and build (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     env:
       # The runner defaults to Xcode 16.4 / Swift 6.1, which crashes in IRGen
       # for actor-isolated SwiftUI bindings. Select the supported toolchain.
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      EXPECTED_ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v4
       - name: Verify tagged application version
@@ -32,7 +42,9 @@ jobs:
           version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Packaging/Info.plist)
           test "$RELEASE_TAG" = "v$version"
       - name: Show Swift toolchain
-        run: swift --version
+        run: |
+          test "$(uname -m)" = "$EXPECTED_ARCH"
+          swift --version
       - name: Run regression tests
         run: swift test --no-parallel
       - name: Run isolated storage self-check
@@ -41,12 +53,14 @@ jobs:
         run: scripts/build-app.sh
       - name: Verify application signature
         run: codesign --verify --deep --strict dist/Kopi.app
+      - name: Run packaged application self-check
+        run: dist/Kopi.app/Contents/MacOS/Kopi --selfcheck
       - name: Create and verify DMG and application ZIP
         run: scripts/build-dmg.sh
       - name: Upload DMG and application ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Kopi-macOS
+          name: Kopi-macOS-${{ matrix.arch }}
           path: |
             dist/*.dmg
             dist/*.zip
@@ -63,7 +77,8 @@ jobs:
       - name: Download verified installers
         uses: actions/download-artifact@v4
         with:
-          name: Kopi-macOS
+          pattern: Kopi-macOS-*
+          merge-multiple: true
           path: dist
       - name: Publish DMG and application ZIP
         env:

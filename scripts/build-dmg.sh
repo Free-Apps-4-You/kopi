@@ -9,7 +9,11 @@ if [[ ! -d "$bundle" ]]; then
     exit 1
 fi
 codesign --verify --deep --strict "$bundle"
-architecture="$(uname -m)"
+architecture="$(lipo -archs "$bundle/Contents/MacOS/Kopi")"
+case "$architecture" in
+    arm64|x86_64) ;;
+    *) echo "error: unsupported application architecture: $architecture" >&2; exit 1 ;;
+esac
 image="$root/dist/Kopi-$architecture.dmg"
 archive="$root/dist/Kopi-$architecture.zip"
 staging="$(mktemp -d "${TMPDIR:-/tmp}/kopi-dmg.XXXXXX")"
