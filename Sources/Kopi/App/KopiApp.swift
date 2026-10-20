@@ -41,6 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarController: MenuBarController?
     private var settingsWindowController: SettingsWindowController?
     private var hotKey: GlobalHotKey?
+    private var radialController: RadialController?
     private var hover: HoverRevealMonitor?
     private var settingsSubscription: AnyCancellable?
     private var captureSubscription: AnyCancellable?
@@ -99,6 +100,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settings: environment.settings
         )
         panelController.prepare()
+        radialController = RadialController(store: environment.store, service: environment.service, panel: panelController)
+        environment.showRadial = { [weak radialController] in radialController?.show() }
         let settingsWindowController = SettingsWindowController(environment: environment)
         let hotKey = GlobalHotKey()
         let hover = HoverRevealMonitor()
@@ -165,6 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = settings.appearance.nsAppearance
         environment.apply(settings: settings)
         panelController?.settingsDidChange()
+        radialController?.configure(enabled: settings.radialEnabled, trigger: settings.radialTrigger)
         if hotKey?.register(settings.activeHotkey, onPress: { [weak panelController] in panelController?.toggle() }) == false,
            settings.activeHotkey != nil {
             environment.panelModel.queueStatus("That shortcut is already taken by another application.")

@@ -37,6 +37,8 @@ final class SettingsViewModel: ObservableObject {
         self.notes = environment.notesModel
     }
 
+    func showRadial() { environment.showRadial?() }
+
     // MARK: - Loading
 
     func load() async {

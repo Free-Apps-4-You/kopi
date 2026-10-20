@@ -53,6 +53,8 @@ public struct HoverReveal: Sendable, Hashable, Codable {
 /// applies it to stored cards, and is read back from the store instead of being
 /// duplicated here.
 public struct KopiSettings: Sendable, Hashable, Codable {
+    public var radialTrigger: RadialTrigger
+    public var radialEnabled: Bool
     public var hotkey: HotkeyDefinition
     public var isHotkeyEnabled: Bool
     public var hoverReveal: HoverReveal
@@ -73,6 +75,8 @@ public struct KopiSettings: Sendable, Hashable, Codable {
     public var notesFoldersConfigured: Bool
 
     public init(
+        radialEnabled: Bool = true,
+        radialTrigger: RadialTrigger = .optionSpace,
         hotkey: HotkeyDefinition = .default,
         isHotkeyEnabled: Bool = true,
         hoverReveal: HoverReveal = .default,
@@ -87,6 +91,8 @@ public struct KopiSettings: Sendable, Hashable, Codable {
         notesFolderIDs: [String] = [],
         notesFoldersConfigured: Bool = false
     ) {
+        self.radialTrigger = radialTrigger
+        self.radialEnabled = radialEnabled
         self.hotkey = hotkey
         self.isHotkeyEnabled = isHotkeyEnabled
         self.hoverReveal = hoverReveal
@@ -107,6 +113,8 @@ public struct KopiSettings: Sendable, Hashable, Codable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let defaults = KopiSettings()
+        radialTrigger = try container.decodeIfPresent(RadialTrigger.self, forKey: .radialTrigger) ?? .optionSpace
+        radialEnabled = try container.decodeIfPresent(Bool.self, forKey: .radialEnabled) ?? true
         hotkey = try container.decodeIfPresent(HotkeyDefinition.self, forKey: .hotkey) ?? defaults.hotkey
         isHotkeyEnabled = try container.decodeIfPresent(Bool.self, forKey: .isHotkeyEnabled) ?? defaults.isHotkeyEnabled
         hoverReveal = try container.decodeIfPresent(HoverReveal.self, forKey: .hoverReveal) ?? defaults.hoverReveal

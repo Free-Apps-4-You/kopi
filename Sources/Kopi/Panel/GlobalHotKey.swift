@@ -11,11 +11,14 @@ import KopiCore
 final class GlobalHotKey {
     /// Four character code identifying Kopi's hot key.
     nonisolated static let signature: OSType = 0x564C5059  // 'VLPY'
-    private static let identifier: UInt32 = 1
+    private let identifier: UInt32
+
+    init(identifier: UInt32 = 1) { self.identifier = identifier }
 
     private nonisolated(unsafe) var hotKeyRef: EventHotKeyRef?
     private nonisolated(unsafe) var handlerRef: EventHandlerRef?
     private var registered: HotkeyDefinition?
+    private var onRelease: (() -> Void)?
     private var onPress: (() -> Void)?
 
     var isRegistered: Bool { hotKeyRef != nil }
@@ -32,8 +35,9 @@ final class GlobalHotKey {
     /// Registers `hotkey`, replacing any previous registration. Passing `nil` only
     /// unregisters, which is what the Settings toggle does.
     @discardableResult
-    func register(_ hotkey: HotkeyDefinition?, onPress: @escaping () -> Void) -> Bool {
+    func register(_ hotkey: HotkeyDefinition?, onPress: @escaping () -> Void, onRelease: (() -> Void)? = nil) -> Bool {
         self.onPress = onPress
+        self.onRelease = onRelease
         guard let hotkey, hotkey.isValid else {
             unregister()
             return false
@@ -44,7 +48,7 @@ final class GlobalHotKey {
         unregister()
         installHandlerIfNeeded()
         var reference: EventHotKeyRef?
-        let instanceID = EventHotKeyID(signature: Self.signature, id: Self.identifier)
+        let instanceID = EventHotKeyID(signature: Self.signature, id: identifier)
         let status = RegisterEventHotKey(
             UInt32(hotkey.keyCode),
             hotkey.modifiers.carbonValue,
@@ -68,17 +72,18 @@ final class GlobalHotKey {
     }
 
     /// Called from the Carbon handler, on the main thread of the event loop.
-    func hotKeyPressed(_ identifier: EventHotKeyID) {
-        guard identifier.signature == Self.signature else { return }
-        onPress?()
+    func hotKeyPressed(_ identifier: EventHotKeyID, released: Bool = false) -> Bool {
+        guard identifier.signature == Self.signature, identifier.id == self.identifier else { return false }
+        if released { onRelease?() } else { onPress?() }
+        return true
     }
 
     private func installHandlerIfNeeded() {
         guard handlerRef == nil else { return }
-        var eventType = EventTypeSpec(
-            eventClass: OSType(kEventClassKeyboard),
-            eventKind: UInt32(kEventHotKeyPressed)
-        )
+        var eventTypes = [
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))
+        ]
         let pointer = Unmanaged.passUnretained(self).toOpaque()
         var reference: EventHandlerRef?
         let status = InstallEventHandler(
@@ -86,8 +91,8 @@ final class GlobalHotKey {
             { nextHandler, event, userData in
                 kopiHotKeyHandler(nextHandler: nextHandler, event: event, userData: userData)
             },
-            1,
-            &eventType,
+            2,
+            &eventTypes,
             pointer,
             &reference
         )
@@ -118,8 +123,8 @@ private func kopiHotKeyHandler(
         return OSStatus(eventNotHandledErr)
     }
     let hotKey = Unmanaged<GlobalHotKey>.fromOpaque(userData).takeUnretainedValue()
+    let released = GetEventKind(event) == UInt32(kEventHotKeyReleased)
     return MainActor.assumeIsolated {
-        hotKey.hotKeyPressed(identifier)
-        return noErr
+        hotKey.hotKeyPressed(identifier, released: released) ? noErr : OSStatus(eventNotHandledErr)
     }
 }

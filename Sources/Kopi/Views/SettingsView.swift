@@ -39,7 +39,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     switch tab {
-                    case .opening: openingSection; appearanceSection
+                    case .opening: radialSection; openingSection; appearanceSection
                     case .history: historySection
                     case .privacy: privacySection; captureSection
                     case .notes: NotesSettingsSection(notes: model.notes)
@@ -102,6 +102,26 @@ struct SettingsView: View {
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
         .background(KopiTheme.controlSurface)
+    }
+
+    private var radialSection: some View {
+        SectionBox("Radial clipboard") {
+            Toggle("Enable radial clipboard", isOn: Binding(
+                get: { settings.settings.radialEnabled },
+                set: { enabled in settings.update { $0.radialEnabled = enabled } }
+            ))
+            Picker("Hold shortcut", selection: Binding(
+                get: { settings.settings.radialTrigger },
+                set: { trigger in settings.update { $0.radialTrigger = trigger } }
+            )) {
+                ForEach(RadialTrigger.allCases) { Text($0.title).tag($0) }
+            }.disabled(!settings.settings.radialEnabled)
+            detail("Hold \(settings.settings.radialTrigger.title) to open at your pointer. Move toward a card and release the key to paste. Return to the center or press Esc to cancel.")
+            detail("Scroll while holding to switch Recent, Pinned, and Collection. Up to eight cards per ring. The panel shortcut stays the same.")
+            Button("Open radial clipboard") { model.showRadial() }
+                .disabled(!settings.settings.radialEnabled)
+            detail("Pasting uses macOS Accessibility access. Without it, the card is copied so you can press ⌘V.")
+        }
     }
 
     private var openingSection: some View {

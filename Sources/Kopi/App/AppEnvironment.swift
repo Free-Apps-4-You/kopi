@@ -23,6 +23,8 @@ final class AppEnvironment {
     let panelModel: PanelViewModel
 
     /// Shown in the panel the next time it opens, for things the user should know.
+    var showRadial: (() -> Void)?
+
     private(set) var startupNotice: String?
 
     private init(
@@ -56,9 +58,8 @@ final class AppEnvironment {
     // MARK: - Building
 
     static func bootstrap() throws -> AppEnvironment {
-        // Carry a pre-rename installation forward before any store opens: the whole
-        // Application Support folder moves once. Recovering an archived vault key
-        // is an explicit Passwords > Migrate action; launch never reads the Keychain.
+        // Recovering an archived vault key is an explicit Passwords > Migrate
+        // action; launch never reads the Keychain.
 
         let settings = KopiSettingsStore()
         let assetStore = try AssetStore(rootDirectory: try AssetStore.defaultRootDirectory())
