@@ -1,7 +1,7 @@
 import SwiftUI
 import KopiCore
 
-/// Opaque floating surfaces keep the animated wheel stable over every desktop.
+/// Adjoining annular segments form one wheel around the cancel/preview hub.
 struct RadialView: View {
     @ObservedObject var state: RadialState
     let choose: (Int) -> Void
@@ -17,22 +17,16 @@ struct RadialView: View {
 
     var body: some View {
         ZStack {
-            Circle().strokeBorder(KopiTheme.accent.opacity(0.12), lineWidth: 1)
-                .frame(width: 356, height: 356).position(x: 300, y: 300)
+            Circle().fill(KopiTheme.surface)
+                .overlay(Circle().strokeBorder(Color.primary.opacity(0.1)))
+                .shadow(color: .black.opacity(0.2), radius: 20, y: 9)
+                .frame(width: 456, height: 456).position(x: 300, y: 300)
                 .allowsHitTesting(false)
-            if let selected = state.selected, !state.loading {
-                let angle = Double(selected) * 2 * .pi / Double(max(1, state.items.count)) - .pi / 2
-                Path { path in
-                    path.move(to: CGPoint(x: 300 + cos(angle) * 92, y: 300 + sin(angle) * 92))
-                    path.addLine(to: CGPoint(x: 300 + cos(angle) * 132, y: 300 + sin(angle) * 132))
-                }.stroke(KopiTheme.accent.opacity(0.55), style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                    .transition(.opacity).allowsHitTesting(false)
-            }
             ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
-                petal(item, index: index)
+                segment(item, index: index)
             }
             center.position(x: 300, y: 300)
-            dock.position(x: 300, y: 560)
+            dock.position(x: 300, y: 564)
             Button(action: cancel) {
                 Image(systemName: "xmark").font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.secondary).frame(width: 28, height: 28)
@@ -50,40 +44,45 @@ struct RadialView: View {
         .onAppear { entrance.value = true }
     }
 
-    private func petal(_ item: ClipboardItemSummary, index: Int) -> some View {
-        let angle = Double(index) * 2 * .pi / Double(max(1, state.items.count)) - .pi / 2
+    private func segment(_ item: ClipboardItemSummary, index: Int) -> some View {
+        let count = max(1, state.items.count)
+        let angle = Double(index) * 2 * .pi / Double(count) - .pi / 2
         let selected = state.selected == index && !state.loading
+        let shape = RadialSegment(index: index, count: count)
         return Button { choose(index) } label: {
-            VStack(spacing: 7) {
-                HStack(spacing: 6) {
-                    RadialGlyph(item: item).frame(width: 23, height: 23)
-                    Spacer(minLength: 0)
-                    if item.isPinned { Image(systemName: "pin.fill").font(.system(size: 8)) }
-                    Text("\(index + 1)").font(.system(size: 9, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary).frame(width: 17, height: 17)
-                        .background(Color.primary.opacity(0.045), in: Circle())
-                }
-                Text(item.displayTitle).font(.system(size: 11, weight: .medium))
-                    .lineLimit(2).multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, minHeight: 27, alignment: .topLeading)
+            ZStack {
+                shape.fill(selected ? KopiTheme.selectedCardSurface : KopiTheme.cardSurface)
+                shape.stroke(selected ? KopiTheme.accent.opacity(0.75) : Color.primary.opacity(0.09), lineWidth: selected ? 1.5 : 1)
+                segmentLabel(item, index: index, selected: selected)
+                    .position(x: 228 + cos(angle) * 158, y: 228 + sin(angle) * 158)
             }
-            .padding(11)
-            .frame(width: 108, height: 88)
-            .foregroundStyle(selected ? KopiTheme.accent : .primary)
-            .background(selected ? KopiTheme.selectedCardSurface : KopiTheme.cardSurface,
-                        in: RoundedRectangle(cornerRadius: 19, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 19, style: .continuous)
-                .strokeBorder(selected ? KopiTheme.accent.opacity(0.9) : Color.primary.opacity(0.09), lineWidth: selected ? 1.5 : 1))
-            .shadow(color: selected ? KopiTheme.accent.opacity(0.14) : .black.opacity(0.11), radius: selected ? 13 : 8, y: selected ? 3 : 5)
-            .scaleEffect(selected ? 1.055 : 1)
+            .frame(width: 456, height: 456)
+            .clipShape(shape)
+            .contentShape(shape)
             .opacity(state.loading ? 0.35 : 1)
         }
-        .buttonStyle(KopiPressStyle())
+        .buttonStyle(.plain)
+        .contentShape(shape)
         .disabled(state.loading)
         .accessibilityLabel("\(index + 1). \(state.copiesOnly ? "Copy" : "Paste") \(item.displayTitle)")
         .accessibilityAddTraits(selected ? [.isSelected] : [])
-        .position(x: 300 + cos(angle) * (shown ? 178 : 166), y: 300 + sin(angle) * (shown ? 178 : 166))
-        .transition(reduceMotion ? .identity : .opacity.combined(with: .scale(scale: 0.92)))
+        .position(x: 300, y: 300)
+        .transition(reduceMotion ? .identity : .opacity)
+    }
+
+    private func segmentLabel(_ item: ClipboardItemSummary, index: Int, selected: Bool) -> some View {
+        VStack(spacing: 7) {
+            RadialGlyph(item: item).frame(width: 25, height: 25)
+            Text(item.displayTitle).font(.system(size: 11, weight: selected ? .semibold : .medium))
+                .lineLimit(2).multilineTextAlignment(.center)
+                .frame(width: 96, height: 28)
+            HStack(spacing: 4) {
+                if item.isPinned { Image(systemName: "pin.fill").font(.system(size: 8)) }
+                Text("\(index + 1)").font(.system(size: 9, weight: .semibold, design: .rounded))
+            }.foregroundStyle(.secondary)
+        }
+        .foregroundStyle(selected ? KopiTheme.accent : .primary)
+        .frame(width: 104, height: 82)
     }
 
     private var center: some View {
@@ -169,5 +168,29 @@ private struct RadialGlyph: View {
         case .image: "photo"
         case .files: "doc.on.doc"
         }
+    }
+}
+
+/// Matches the controller's clockwise sectors, beginning at twelve o'clock.
+/// The hole is the same size as the pointer's safe cancellation area.
+struct RadialSegment: Shape {
+    let index: Int
+    let count: Int
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let radius = min(rect.width, rect.height) / 2
+        let inner = radius * (88.0 / 228.0)
+        let hole = Path(ellipseIn: CGRect(x: center.x - inner, y: center.y - inner,
+                                         width: inner * 2, height: inner * 2))
+        if count <= 1 { return Path(ellipseIn: rect).subtracting(hole) }
+        let sweep = 360.0 / Double(count)
+        let start = Angle.degrees(Double(index) * sweep - 90 - sweep / 2)
+        let end = Angle.degrees(Double(index) * sweep - 90 + sweep / 2)
+        var path = Path()
+        path.move(to: center)
+        path.addArc(center: center, radius: radius, startAngle: start, endAngle: end, clockwise: false)
+        path.closeSubpath()
+        return path.subtracting(hole)
     }
 }

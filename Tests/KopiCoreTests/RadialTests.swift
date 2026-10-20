@@ -77,3 +77,27 @@ struct RadialShortcutTests {
         #expect(RadialTrigger.allCases.allSatisfy { $0.hotkey != HotkeyDefinition.default })
     }
 }
+
+import SwiftUI
+
+@Suite("Radial segment hit regions")
+struct RadialSegmentTests {
+    @Test func segmentsCoverTheRingWithoutOverlappingTheHub() {
+        let rect = CGRect(x: 0, y: 0, width: 456, height: 456)
+        for count in 1...8 {
+            let paths = (0..<count).map { RadialSegment(index: $0, count: count).path(in: rect) }
+            #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 228, y: 228)) }, "count \(count)")
+            #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 0, y: 0)) })
+            for degrees in stride(from: 0.314, to: 360.0, by: 7.0) {
+                let angle = degrees * Double.pi / 180
+                let point = CGPoint(x: 228 + sin(angle) * 158, y: 228 - cos(angle) * 158)
+                #expect(paths.filter { $0.contains(point) }.count == 1)
+            }
+            for index in 0..<count {
+                let angle = Double(index) * 2 * Double.pi / Double(count)
+                let point = CGPoint(x: 228 + sin(angle) * 158, y: 228 - cos(angle) * 158)
+                #expect(paths[index].contains(point))
+            }
+        }
+    }
+}
