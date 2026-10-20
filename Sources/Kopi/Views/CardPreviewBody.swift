@@ -58,12 +58,8 @@ struct CardPreviewBody: View {
         if let color = ClipboardColor.parse(item.excerpt) {
             ColorClipView(color: color)
         } else if let document = preview.richText, !document.isEmpty {
-            Text(document.displayText)
-                .font(.system(size: 12))
-                .lineSpacing(2.5)
-                .lineLimit(6)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+            RichTextPreviewView(document: document, selectable: false)
+                .clipped()
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else {
             excerpt(item.excerpt)

@@ -217,7 +217,7 @@ public actor HistoryStore {
             guard let row = try Self.summaryRow(db, id: itemID) else {
                 throw HistoryStoreError.itemNotFound(itemID)
             }
-            let kind = row.itemKind
+            let kind: ClipboardItemKind = row.itemKind == .text && edit.richText != nil ? .richText : row.itemKind
             var representations = try Self.representations(db, itemID: itemID)
             var fileReferences = try Self.fileReferences(db, itemID: itemID)
             var text = representations.first { $0.kind == .plainText }?.text
@@ -267,11 +267,12 @@ public actor HistoryStore {
             try db.execute(
                 sql: """
                 UPDATE clip_item SET
-                    label = ?, excerpt = ?, search_text = ?, search_text_folded = ?, fingerprint = ?,
+                    kind = ?, label = ?, excerpt = ?, search_text = ?, search_text_folded = ?, fingerprint = ?,
                     primary_url = ?, file_names_json = ?, is_edited = 1, updated_at = ?
                 WHERE id = ?
                 """,
                 arguments: [
+                    kind.rawValue,
                     label,
                     excerpt,
                     searchText,

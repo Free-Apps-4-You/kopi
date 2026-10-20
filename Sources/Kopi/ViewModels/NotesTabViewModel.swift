@@ -13,6 +13,7 @@ final class NotesTabViewModel: ObservableObject {
     struct Preview: Identifiable {
         let metadata: NotesNoteMetadata
         var note: NotesNote?
+        var richText: RichTextDocument?
         var isLoading = true
         var error: String?
 
@@ -375,7 +376,10 @@ final class NotesTabViewModel: ObservableObject {
         do {
             let loaded = try await client.notes(withIDs: [metadata.id])
             guard previewRequestID == requestID else { return }
+            let document = loaded.first.flatMap { RichTextCoding.document(fromHTML: $0.bodyHTML) }
+            guard previewRequestID == requestID else { return }
             preview?.note = loaded.first
+            preview?.richText = document
             preview?.isLoading = false
         } catch {
             guard previewRequestID == requestID else { return }
@@ -402,13 +406,19 @@ final class NotesTabViewModel: ObservableObject {
             showStatus("The note could not be read.")
             return false
         }
-        guard !note.plainText.isEmpty else {
+        let document = (preview?.note?.id == note.id ? preview?.richText : nil)
+            ?? RichTextCoding.document(fromHTML: note.bodyHTML)
+        guard !note.plainText.isEmpty || document?.isEmpty == false else {
             showStatus("That note has no text to copy.")
             return false
         }
         do {
-            _ = try await service.copyPlainTextToPasteboard(note.plainText)
-            showStatus("Note text copied")
+            if let document, !document.isEmpty {
+                _ = try await service.copyRichTextToPasteboard(document)
+            } else {
+                _ = try await service.copyPlainTextToPasteboard(note.plainText)
+            }
+            showStatus("Note copied with formatting")
             return true
         } catch {
             showStatus(userFacingDescription(error))

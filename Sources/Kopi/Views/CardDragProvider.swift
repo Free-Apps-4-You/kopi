@@ -125,6 +125,17 @@ enum NoteDrag {
             }
             return nil
         }
+        provider.registerDataRepresentation(forTypeIdentifier: "public.html", visibility: .all) { completion in
+            Task.detached {
+                do {
+                    guard let note = try await client.notes(withIDs: [id]).first else {
+                        completion(nil, CardDragError.unavailable); return
+                    }
+                    completion(Data(note.bodyHTML.utf8), nil)
+                } catch { completion(nil, error) }
+            }
+            return nil
+        }
         return provider
     }
 }

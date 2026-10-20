@@ -15,7 +15,7 @@ final class PreviewStore {
         var byteCost: Int {
             switch self {
             case .image(let image, _): image.bytesPerRow * image.height
-            case .richText(let document): document.runs.reduce(0) { $0 + $1.text.utf8.count * 4 + 64 }
+            case .richText(let document): document.runs.reduce(0) { $0 + $1.text.utf8.count * 4 + 64 } + (document.preservedRTF?.count ?? 0) + (document.preservedHTML?.utf8.count ?? 0)
             case .code(let highlight): highlight.tokens.count * 64
             }
         }

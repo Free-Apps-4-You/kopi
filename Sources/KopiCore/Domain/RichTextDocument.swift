@@ -1,6 +1,6 @@
 import Foundation
 
-/// A small rich-text value: runs of plain text with basic formatting.
+/// Rich text with portable runs and optional native document representations.
 ///
 /// Editing a stored rich-text card rebuilds both an HTML and an RTF flavour from
 /// this type, so applications can never paste an outdated version of the content.
@@ -29,7 +29,12 @@ public struct RichTextDocument: Sendable, Hashable, Codable {
         }
     }
 
-    public var runs: [Run]
+    /// Native rich-text representations preserve paragraph styles, tables and lists.
+    public var preservedRTF: Data?
+    public var preservedHTML: String?
+    public var runs: [Run] {
+        didSet { preservedRTF = nil; preservedHTML = nil }
+    }
 
     public init(runs: [Run]) {
         self.runs = runs
@@ -49,11 +54,12 @@ public struct RichTextDocument: Sendable, Hashable, Codable {
     }
 
     public var hasFormatting: Bool {
-        runs.contains { !$0.traits.isEmpty || $0.linkURL != nil }
+        preservedRTF != nil || preservedHTML != nil || runs.contains { !$0.traits.isEmpty || $0.linkURL != nil }
     }
 
     /// HTML flavour pasted into rich-text applications.
     public func html() -> String {
+        if let preservedHTML { return preservedHTML }
         var body = String()
         for line in lines() {
             let fragments = line.map(htmlFragment).joined()
@@ -66,6 +72,7 @@ public struct RichTextDocument: Sendable, Hashable, Codable {
 
     /// RTF flavour pasted into rich-text applications.
     public func rtf() -> Data {
+        if let preservedRTF { return preservedRTF }
         var output = #"{\rtf1\ansi\ansicpg1252\deff0{\fonttbl{\f0\fswiss Helvetica;}}\f0\fs24 "#
         for (index, line) in lines().enumerated() {
             if index > 0 { output += "\\par\n" }

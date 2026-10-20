@@ -18,6 +18,7 @@ Intel & Apple Silicon · macOS 14+ · [MIT licensed](LICENSE)
 
 ## Keep the good stuff close
 
+- **Formatting that stays with your clips.** Edit text with headings, lists, checklists, tables, colors, and inline styles. Preview and copy Apple Notes with formatting; Notes stay read-only.
 - **A clipboard at your pointer.** Hold ⌥Space, point at a card, and release to copy. Preview recent clips and images, and scroll or press ← → for older copies.
 - **Find that copy.** Search text, links, images, and files, or filter by the app they came from.
 - **Save your favorites.** Pin useful clips and keep reusable snippets in Collection.

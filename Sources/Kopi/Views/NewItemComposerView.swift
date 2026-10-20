@@ -119,15 +119,12 @@ struct NewItemComposerView: View {
         } else {
             switch draft.mode {
             case .text:
-                PlainTextEditorView(text: textBinding, label: "New item text")
-                    .frame(height: 120)
-                    .kopiInputSurface()
-                    .overlay(alignment: .topLeading) {
-                        if draft.text.isEmpty {
-                            Text("Write your text here…").font(.system(size: 12)).foregroundStyle(.tertiary)
-                                .padding(8).allowsHitTesting(false).accessibilityHidden(true)
-                        }
-                    }
+                RichTextEditorView(document: Binding(
+                    get: { model.newItemDraft?.richText ?? RichTextDocument(plainText: "") },
+                    set: { model.updateNewItemRichText($0) }
+                ))
+                .frame(height: 150)
+                .kopiInputSurface()
             case .link:
                 VStack(alignment: .leading, spacing: 8) {
                     TextField("https://example.com", text: textBinding)

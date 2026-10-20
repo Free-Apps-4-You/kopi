@@ -26,7 +26,9 @@ enum RichTextCoding {
             ],
             documentAttributes: nil
         ) else { return nil }
-        return document(from: attributed)
+        var document = document(from: attributed)
+        document.preservedHTML = html
+        return document
     }
 
     /// Runs of text with the formatting the editor understands.
@@ -49,11 +51,21 @@ enum RichTextCoding {
             let link = (attributes[.link] as? URL) ?? (attributes[.link] as? String).flatMap(URL.init(string:))
             runs.append(RichTextDocument.Run(text: text, traits: traits, linkURL: link))
         }
-        return RichTextDocument(runs: runs)
+        var document = RichTextDocument(runs: runs)
+        let range = NSRange(location: 0, length: attributed.length)
+        document.preservedRTF = try? attributed.data(from: range, documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+        if let html = try? attributed.data(from: range, documentAttributes: [.documentType: NSAttributedString.DocumentType.html]) {
+            document.preservedHTML = String(data: html, encoding: .utf8)
+        }
+        return document
     }
 
     /// Attributed string the editor edits and the preview draws.
     static func attributedString(from document: RichTextDocument) -> NSAttributedString {
+        if let data = document.preservedRTF,
+           let attributed = try? NSAttributedString(data: data, options: [.documentType: NSAttributedString.DocumentType.rtf], documentAttributes: nil) {
+            return attributed
+        }
         let result = NSMutableAttributedString()
         for run in document.runs {
             var attributes: [NSAttributedString.Key: Any] = [
@@ -70,6 +82,23 @@ enum RichTextCoding {
             result.append(NSAttributedString(string: run.text, attributes: attributes))
         }
         return result
+    }
+
+    /// Adapt ordinary document black to the system appearance, keeping explicit
+    /// colored backgrounds and their contrasting foregrounds intact.
+    static func displayString(from document: RichTextDocument) -> NSAttributedString {
+        let text = NSMutableAttributedString(attributedString: attributedString(from: document))
+        text.enumerateAttributes(in: NSRange(location: 0, length: text.length)) { attributes, span, _ in
+            let foreground = (attributes[.foregroundColor] as? NSColor)?.usingColorSpace(.deviceRGB)
+            let style = attributes[.paragraphStyle] as? NSParagraphStyle
+            let background = attributes[.backgroundColor] as? NSColor
+            let blockBackground = style?.textBlocks.compactMap(\.backgroundColor).first
+            if background == nil, blockBackground == nil,
+               foreground == nil || foreground.map({ $0.redComponent < 0.1 && $0.greenComponent < 0.1 && $0.blueComponent < 0.1 }) == true {
+                text.addAttribute(.foregroundColor, value: NSColor.labelColor, range: span)
+            }
+        }
+        return text
     }
 
     /// Bold and italic are applied to the system font, so edited text keeps the

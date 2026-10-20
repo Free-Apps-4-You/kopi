@@ -1,4 +1,5 @@
 import AppKit
+import KopiCore
 
 /// A focused item uses its natural content size, bounded by the panel and readable limits.
 @MainActor
@@ -13,6 +14,18 @@ enum FocusPreviewSizing {
         let bounds = attributed.boundingRect(with: CGSize(width: width - 32, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading])
         let maxHeight = max(96, min(430, available.height - 96))
         return CGSize(width: width, height: min(maxHeight, max(122, ceil(bounds.height) + 106)))
+    }
+
+    static func richText(_ document: RichTextDocument, available: CGSize) -> CGSize {
+        let width = max(180, min(620, available.width - 96))
+        let storage = NSTextStorage(attributedString: RichTextCoding.attributedString(from: document))
+        let layout = NSLayoutManager()
+        let container = NSTextContainer(containerSize: CGSize(width: width - 40, height: .greatestFiniteMagnitude))
+        storage.addLayoutManager(layout)
+        layout.addTextContainer(container)
+        layout.ensureLayout(for: container)
+        let height = ceil(layout.usedRect(for: container).height) + 110
+        return CGSize(width: width, height: min(max(122, height), max(122, min(430, available.height - 96))))
     }
 
     static func image(_ pixels: CGSize, available: CGSize) -> CGSize {

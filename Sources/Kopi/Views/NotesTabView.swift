@@ -198,7 +198,7 @@ struct NoteCardView: View {
         .accessibilityLabel(note.title.isEmpty ? "Untitled note" : note.title)
         .accessibilityAction { Task { await model.copyText(of: note) } }
         .accessibilityAction(named: "Maximise") { Task { await model.preparePreview(note) } }
-        .accessibilityAction(named: "Copy Text") { Task { await model.copyText(of: note) } }
+        .accessibilityAction(named: "Copy") { Task { await model.copyText(of: note) } }
         .accessibilityAction(named: "Open in Apple Notes") { Task { await model.openInNotes(note) } }
     }
 
@@ -316,7 +316,7 @@ struct NoteCardView: View {
 
     @ViewBuilder private var actions: some View {
         Button("Maximise", systemImage: "arrow.up.left.and.arrow.down.right") { Task { await model.preparePreview(note) } }
-        Button("Copy Text", systemImage: "doc.on.doc") { Task { await model.copyText(of: note) } }
+        Button("Copy", systemImage: "doc.on.doc") { Task { await model.copyText(of: note) } }
         Button("Open in Apple Notes", systemImage: "arrow.up.forward.app") { Task { await model.openInNotes(note) } }
     }
 
@@ -332,7 +332,7 @@ struct NotesPreviewView: View {
         if let preview = model.preview {
             GeometryReader { proxy in
                 let text = preview.error ?? preview.note?.plainText ?? preview.metadata.excerpt
-                let size = FocusPreviewSizing.text(text, available: proxy.size)
+                let size = preview.richText.map { FocusPreviewSizing.richText($0, available: proxy.size) } ?? FocusPreviewSizing.text(text, available: proxy.size)
                 ZStack {
                     OverlayBackdrop { model.closePreview() }
                     OverlaySurface {
@@ -342,18 +342,19 @@ struct NotesPreviewView: View {
                                 if preview.isLoading {
                                     ProgressView().controlSize(.small)
                                 } else {
-                                    Text(text)
-                                        .font(.system(size: 13))
-                                        .lineSpacing(2)
-                                        .textSelection(.enabled)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    if let document = preview.richText, !document.isEmpty {
+                                        RichTextPreviewView(document: document)
+                                    } else {
+                                        Text(text).font(.system(size: 13)).textSelection(.enabled)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
                                 }
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             Divider().overlay(KopiTheme.border(contrast: contrast))
                             HStack(spacing: 14) {
-                                Button { Task { await model.copyText(of: preview.metadata) } } label: { Label("Copy Text", systemImage: "doc.on.doc") }
-                                    .kopiTooltip("Copy Text")
+                                Button { Task { await model.copyText(of: preview.metadata) } } label: { Label("Copy", systemImage: "doc.on.doc") }
+                                    .kopiTooltip("Copy")
                                 Button { Task { await model.openInNotes(preview.metadata) } } label: { Label("Open in Apple Notes", systemImage: "arrow.up.forward.app") }
                                     .kopiTooltip("Open in Apple Notes")
                                 Spacer(minLength: 4)

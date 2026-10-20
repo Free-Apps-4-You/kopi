@@ -313,6 +313,19 @@ public actor ClipboardService {
         return state
     }
 
+    /// Copies formatted external content without capturing our own write as a new card.
+    @discardableResult
+    public func copyRichTextToPasteboard(_ document: RichTextDocument) async throws -> OwnCopyState {
+        let changeCount = try pasteboard.write(PasteboardWriteRequest(flavours: [
+            PasteboardFlavour(type: ClipboardRepresentationKind.plainText.pasteboardType, string: document.plainText),
+            PasteboardFlavour(type: ClipboardRepresentationKind.html.pasteboardType, string: document.html()),
+            PasteboardFlavour(type: ClipboardRepresentationKind.rtf.pasteboardType, data: document.rtf())
+        ]))
+        let state = OwnCopyState(itemID: ClipboardItemID(), changeCount: changeCount)
+        try await store.recordOwnCopy(state)
+        return state
+    }
+
     /// The flavours a card is placed on the pasteboard as, without writing them.
     public func writeRequest(for itemID: ClipboardItemID) async throws -> PasteboardWriteRequest {
         guard let detail = try await store.detail(for: itemID) else {

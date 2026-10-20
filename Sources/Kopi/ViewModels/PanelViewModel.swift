@@ -700,6 +700,7 @@ final class PanelViewModel: ObservableObject {
     private func applyNewItemMode(_ mode: NewItemDraft.Mode) {
         newItemDraft?.mode = mode
         newItemDraft?.text = ""
+        newItemDraft?.richText = RichTextDocument(plainText: "")
         newItemDraft?.attachment = nil
         newItemDraft?.error = nil
         pendingNewItemMode = nil
@@ -709,6 +710,14 @@ final class PanelViewModel: ObservableObject {
         guard let draft = newItemDraft, !isSavingDraft, draft.attachment == nil,
               draft.mode == .text || draft.mode == .link else { return }
         newItemDraft?.text = text
+        newItemDraft?.richText = RichTextDocument(plainText: text)
+        newItemDraft?.error = nil
+    }
+
+    func updateNewItemRichText(_ document: RichTextDocument) {
+        guard newItemDraft?.mode == .text, !isSavingDraft else { return }
+        newItemDraft?.richText = document
+        newItemDraft?.text = document.plainText
         newItemDraft?.error = nil
     }
 
@@ -789,7 +798,9 @@ final class PanelViewModel: ObservableObject {
             switch attachment.kind {
             case .text:
                 newItemDraft?.mode = .text
-                newItemDraft?.text = attachment.snapshot.string(for: ClipboardRepresentationKind.plainText.pasteboardType) ?? ""
+                let text = attachment.snapshot.string(for: ClipboardRepresentationKind.plainText.pasteboardType) ?? ""
+                newItemDraft?.text = text
+                newItemDraft?.richText = RichTextDocument(plainText: text)
             case .link:
                 newItemDraft?.mode = .link
                 newItemDraft?.text = attachment.snapshot.string(for: ClipboardRepresentationKind.link.pasteboardType) ?? ""
@@ -833,6 +844,12 @@ final class PanelViewModel: ObservableObject {
                 snapshot = PasteboardSnapshot(changeCount: 0, items: [PasteboardItemSnapshot(flavours: [
                     PasteboardFlavour(type: ClipboardRepresentationKind.link.pasteboardType, string: url.absoluteString),
                     PasteboardFlavour(type: ClipboardRepresentationKind.plainText.pasteboardType, string: url.absoluteString)
+                ])])
+            } else if draft.richText.hasFormatting {
+                snapshot = PasteboardSnapshot(changeCount: 0, items: [PasteboardItemSnapshot(flavours: [
+                    PasteboardFlavour(type: ClipboardRepresentationKind.plainText.pasteboardType, string: draft.richText.plainText),
+                    PasteboardFlavour(type: ClipboardRepresentationKind.html.pasteboardType, string: draft.richText.html()),
+                    PasteboardFlavour(type: ClipboardRepresentationKind.rtf.pasteboardType, data: draft.richText.rtf())
                 ])])
             } else {
                 snapshot = NewItemImport.text(draft.text, detectsLinks: false)
@@ -1124,6 +1141,9 @@ final class PanelViewModel: ObservableObject {
         let label = editor.label.trimmingCharacters(in: .whitespacesAndNewlines)
         switch editor.kind {
         case .text:
+            if editor.richText.hasFormatting {
+                return ClipboardItemEdit(label: label, richText: editor.richText)
+            }
             return .text(editor.text, label: label)
         case .richText:
             return ClipboardItemEdit(label: label, richText: editor.richText)

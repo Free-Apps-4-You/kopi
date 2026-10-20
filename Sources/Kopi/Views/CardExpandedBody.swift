@@ -70,7 +70,7 @@ struct CardExpandedBody: View {
                     .lineSpacing(3)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text(document.displayText)
+                RichTextPreviewView(document: document)
                     .font(.system(size: 12))
                     .lineSpacing(3)
                     .frame(maxWidth: .infinity, alignment: .leading)

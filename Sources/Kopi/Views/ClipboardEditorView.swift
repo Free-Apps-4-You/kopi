@@ -69,28 +69,13 @@ struct ClipboardEditorView: View {
     private func fields(_ editor: PanelViewModel.EditorState) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             switch editor.kind {
-            case .text:
-                labelField(editor)
-                VStack(alignment: .leading, spacing: 6) {
-                    fieldTitle("Text")
-                    TextEditor(text: Binding(
-                        get: { editor.text },
-                        set: { value in model.updateEditor { $0.text = value } }
-                    ))
-                    .font(.system(size: 12))
-                    .focused($focusedField, equals: .text)
-                    .frame(minHeight: 180)
-                    .scrollContentBackground(.hidden)
-                    .padding(5)
-                    .kopiInputSurface(isFocused: focusedField == .text)
-                }
-            case .richText:
+            case .text, .richText:
                 labelField(editor)
                 VStack(alignment: .leading, spacing: 6) {
                     fieldTitle("Text")
                     RichTextEditorView(document: Binding(
                         get: { editor.richText },
-                        set: { value in model.updateEditor { $0.richText = value } }
+                        set: { value in model.updateEditor { $0.richText = value; $0.text = value.plainText } }
                     ))
                     .frame(minHeight: 200)
                     .kopiInputSurface()

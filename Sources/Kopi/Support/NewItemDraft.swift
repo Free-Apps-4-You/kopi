@@ -22,6 +22,7 @@ struct NewItemDraft: Identifiable {
     let id = UUID()
     var mode: Mode = .text
     var text = ""
+    var richText = RichTextDocument(plainText: "")
     var label = ""
     var attachment: NewItemAttachment?
     var isLoading = false

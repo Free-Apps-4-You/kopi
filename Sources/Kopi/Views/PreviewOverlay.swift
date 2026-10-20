@@ -49,6 +49,9 @@ struct PreviewOverlay: View {
             return CGSize(width: min(360, max(180, available.width - 48)),
                           height: min(270, max(122, available.height - 48)))
         }
+        if detail?.summary.kind == .richText, let document = model.previews.richText(for: preview.itemID) {
+            return FocusPreviewSizing.richText(document, available: available)
+        }
         let text = preview.error ?? detail?.plainText ?? summary?.excerpt ?? "Loading…"
         return FocusPreviewSizing.text(text, available: available)
     }
@@ -98,7 +101,7 @@ struct PreviewOverlay: View {
                 .font(.system(size: 13))
                 .lineSpacing(2)
         } else {
-            Text(document.displayText)
+            RichTextPreviewView(document: document)
                 .font(.system(size: 13))
                 .lineSpacing(2)
                 .textSelection(.enabled)

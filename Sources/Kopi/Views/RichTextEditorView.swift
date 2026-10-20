@@ -2,11 +2,8 @@ import AppKit
 import SwiftUI
 import KopiCore
 
-/// Rich-text editor with the basic formatting of the design: bold, italic and
-/// underline, applied to the selection.
-///
-/// The editor works on an attributed string and hands back runs, which is what
-/// ``HistoryStore`` rebuilds the HTML and RTF flavours from when the card is saved.
+/// Native rich-text editing preserves tables, paragraph styles and inline formatting.
+/// Saves carry the full attributed document as HTML and RTF alongside searchable text.
 struct RichTextEditorView: NSViewRepresentable {
     @Binding var document: RichTextDocument
 
@@ -17,7 +14,7 @@ struct RichTextEditorView: NSViewRepresentable {
     func makeNSView(context: Context) -> RichTextEditorHost {
         let host = RichTextEditorHost()
         host.textView.delegate = context.coordinator
-        host.setText(RichTextCoding.attributedString(from: document))
+        host.setText(RichTextCoding.displayString(from: document))
         context.coordinator.lastEmitted = document
         return host
     }
@@ -26,7 +23,7 @@ struct RichTextEditorView: NSViewRepresentable {
         context.coordinator.document = $document
         guard context.coordinator.lastEmitted != document else { return }
         context.coordinator.lastEmitted = document
-        nsView.setText(RichTextCoding.attributedString(from: document))
+        nsView.setText(RichTextCoding.displayString(from: document))
     }
 
     @MainActor
@@ -85,12 +82,24 @@ final class RichTextEditorHost: NSView {
         let toolbar = NSStackView(views: [
             toolbarButton(symbol: "bold", action: #selector(FormattingTextView.toggleBold), tooltip: "Bold ⌘B"),
             toolbarButton(symbol: "italic", action: #selector(FormattingTextView.toggleItalic), tooltip: "Italic ⌘I"),
-            toolbarButton(symbol: "underline", action: #selector(FormattingTextView.toggleUnderline), tooltip: "Underline ⌘U")
+            toolbarButton(symbol: "underline", action: #selector(FormattingTextView.toggleUnderline), tooltip: "Underline ⌘U"),
+            toolbarButton(symbol: "strikethrough", action: #selector(FormattingTextView.toggleStrike), tooltip: "Strikethrough"),
+            toolbarButton(symbol: "list.bullet", action: #selector(FormattingTextView.bulletList), tooltip: "Bulleted list"),
+            toolbarButton(symbol: "list.number", action: #selector(FormattingTextView.numberedList), tooltip: "Numbered list"),
+            toolbarButton(symbol: "checklist", action: #selector(FormattingTextView.checklist), tooltip: "Checklist"),
+            toolbarButton(symbol: "tablecells", action: #selector(FormattingTextView.insertTable), tooltip: "Insert 2 × 3 table"),
+            toolbarButton(symbol: "paintpalette", action: #selector(FormattingTextView.showColorPicker), tooltip: "Text color")
         ])
         toolbar.orientation = .horizontal
         toolbar.spacing = 4
         toolbar.translatesAutoresizingMaskIntoConstraints = false
 
+        let styles = NSPopUpButton()
+        styles.addItems(withTitles: ["Body", "Title", "Heading", "Subheading", "Monospaced"])
+        styles.target = textView
+        styles.action = #selector(FormattingTextView.applyStyle(_:))
+        styles.setAccessibilityLabel("Paragraph style")
+        toolbar.insertArrangedSubview(styles, at: 0)
         addSubview(toolbar)
         addSubview(scrollView)
         NSLayoutConstraint.activate([
@@ -150,37 +159,212 @@ final class FormattingTextView: NSTextView {
     @objc func toggleItalic() { toggle(.italic) }
     @objc func toggleUnderline() { toggle(.underline) }
 
-    /// Toggles one trait over the selection, leaving the rest of the run alone.
-    func toggle(_ trait: RichTextDocument.Traits) {
-        let range = selectedRange()
-        guard range.length > 0, let storage = textStorage else { return }
-        let adding = !selectionHas(trait, in: range)
+    @objc func showColorPicker() {
+        window?.makeFirstResponder(self)
+        let panel = NSColorPanel.shared
+        panel.setTarget(self)
+        panel.setAction(#selector(NSTextView.changeColor(_:)))
+        panel.orderFront(nil)
+    }
 
-        storage.beginEditing()
-        if trait == .bold || trait == .italic {
-            storage.enumerateAttribute(.font, in: range, options: []) { value, subrange, _ in
-                let font = (value as? NSFont) ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
-                var symbolic = font.fontDescriptor.symbolicTraits
-                switch trait {
-                case .bold:
-                    if adding { symbolic.formUnion(.bold) } else { symbolic.subtract(.bold) }
-                case .italic:
-                    if adding { symbolic.formUnion(.italic) } else { symbolic.subtract(.italic) }
-                default: break
-                }
-                let descriptor = font.fontDescriptor.withSymbolicTraits(symbolic)
-                let updated = NSFont(descriptor: descriptor, size: font.pointSize) ?? font
-                storage.addAttribute(.font, value: updated, range: subrange)
-            }
-        } else {
-            if adding {
-                storage.addAttribute(.underlineStyle, value: NSNumber(value: NSUnderlineStyle.single.rawValue), range: range)
-            } else {
-                storage.removeAttribute(.underlineStyle, range: range)
+    @objc func toggleStrike() {
+        if selectedRange().length == 0 {
+            typingAttributes[.strikethroughStyle] = (typingAttributes[.strikethroughStyle] as? Int ?? 0) == 0 ? 1 : 0
+            return
+        }
+        transformSelection { text in
+            let range = NSRange(location: 0, length: text.length)
+            let current = text.length > 0 ? (text.attribute(.strikethroughStyle, at: 0, effectiveRange: nil) as? NSNumber)?.intValue ?? 0 : 0
+            text.addAttribute(.strikethroughStyle, value: current == 0 ? 1 : 0, range: range)
+        }
+    }
+
+    @objc func applyStyle(_ sender: NSPopUpButton) {
+        let font: NSFont
+        switch sender.indexOfSelectedItem {
+        case 1: font = .boldSystemFont(ofSize: 24)
+        case 2: font = .boldSystemFont(ofSize: 18)
+        case 3: font = .boldSystemFont(ofSize: 15)
+        case 4: font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+        default: font = .systemFont(ofSize: 13)
+        }
+        transformSelection(paragraphs: true) { text in
+            text.addAttribute(.font, value: font, range: NSRange(location: 0, length: text.length))
+        }
+        typingAttributes[.font] = font
+        window?.makeFirstResponder(self)
+    }
+
+    @objc func bulletList() { applyList(marker: .disc) }
+    @objc func numberedList() { applyList(marker: .decimal) }
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let index = characterIndexForInsertion(at: point)
+        let text = string as NSString
+        if index < text.length {
+            let marker = text.substring(with: NSRange(location: index, length: 1))
+            if marker == "☐" || marker == "☑" {
+                insertText(marker == "☐" ? "☑" : "☐", replacementRange: NSRange(location: index, length: 1))
+                return
             }
         }
-        storage.endEditing()
+        super.mouseDown(with: event)
+    }
+
+    @objc func checklist() {
+        if string.isEmpty {
+            insertFormatted(NSAttributedString(string: "☐ ", attributes: typingAttributes), replacementRange: selectedRange())
+            return
+        }
+        transformSelection(paragraphs: true) { text in
+            var paragraphs: [NSRange] = []
+            (text.string as NSString).enumerateSubstrings(in: NSRange(location: 0, length: text.length), options: .byParagraphs) { _, range, _, _ in paragraphs.append(range) }
+            for paragraph in paragraphs.reversed() {
+                let line = (text.string as NSString).substring(with: paragraph)
+                if line.hasPrefix("☐ ") || line.hasPrefix("☑ ") {
+                    text.deleteCharacters(in: NSRange(location: paragraph.location, length: 2))
+                } else {
+                    let attributes = text.attributes(at: paragraph.location, effectiveRange: nil)
+                    text.insert(NSAttributedString(string: "☐ ", attributes: attributes), at: paragraph.location)
+                }
+            }
+        }
+    }
+
+    private func applyList(marker: NSTextList.MarkerFormat) {
+        let list = NSTextList(markerFormat: marker, options: 0)
+        let range = (string as NSString).paragraphRange(for: selectedRange())
+        let style = NSMutableParagraphStyle()
+        style.textLists = [list]
+        style.headIndent = 24
+        if range.length == 0 {
+            var attributes = typingAttributes
+            attributes[.paragraphStyle] = style
+            insertFormatted(NSAttributedString(string: "\t" + list.marker(forItemNumber: 1) + "\t", attributes: attributes), replacementRange: range)
+            typingAttributes = attributes
+            return
+        }
+        transformSelection(paragraphs: true) { text in
+            var paragraphs: [NSRange] = []
+            (text.string as NSString).enumerateSubstrings(in: NSRange(location: 0, length: text.length), options: .byParagraphs) { _, range, _, _ in
+                paragraphs.append(range)
+            }
+            for (index, paragraph) in paragraphs.enumerated().reversed() {
+                let oldStyle = text.attribute(.paragraphStyle, at: paragraph.location, effectiveRange: nil) as? NSParagraphStyle
+                let wasList = oldStyle?.textLists.isEmpty == false
+                let removing = oldStyle?.textLists.last?.markerFormat == marker
+                let paragraphText = (text.string as NSString).substring(with: paragraph)
+                let prefixLength = wasList && paragraphText.hasPrefix("\t") ? paragraphText.dropFirst().firstIndex(of: "\t").map { paragraphText.distance(from: paragraphText.startIndex, to: $0) + 1 } ?? 0 : 0
+                let updated = oldStyle?.mutableCopy() as? NSMutableParagraphStyle ?? NSMutableParagraphStyle()
+                updated.textLists = removing ? [] : [list]
+                updated.headIndent = removing ? 0 : 24
+                text.addAttribute(.paragraphStyle, value: updated, range: paragraph)
+                var attributes = text.attributes(at: paragraph.location, effectiveRange: nil)
+                attributes[.paragraphStyle] = updated
+                text.replaceCharacters(in: NSRange(location: paragraph.location, length: prefixLength), with: NSAttributedString(string: removing ? "" : "\t" + list.marker(forItemNumber: index + 1) + "\t", attributes: attributes))
+            }
+        }
+    }
+
+    override func insertNewline(_ sender: Any?) {
+        let range = (string as NSString).paragraphRange(for: selectedRange())
+        let line = (string as NSString).substring(with: range).trimmingCharacters(in: .newlines)
+        let components = line.components(separatedBy: "\t")
+        let checklist = line.hasPrefix("☐ ") || line.hasPrefix("☑ ")
+        let list = (typingAttributes[.paragraphStyle] as? NSParagraphStyle)?.textLists.last
+        guard checklist || (list != nil && components.count >= 3) else { super.insertNewline(sender); return }
+        let prefix: String
+        let content: String
+        if checklist {
+            prefix = "☐ "
+            content = String(line.dropFirst(2))
+        } else {
+            let number = Int(components[1].filter(\.isNumber)) ?? 1
+            prefix = "\t" + (list?.marker(forItemNumber: number + 1) ?? "•") + "\t"
+            content = components.dropFirst(2).joined(separator: "\t")
+        }
+        if content.isEmpty {
+            var attributes = typingAttributes
+            attributes[.paragraphStyle] = NSParagraphStyle.default
+            insertFormatted(NSAttributedString(string: "", attributes: attributes), replacementRange: range)
+            typingAttributes = attributes
+        } else {
+            super.insertNewline(sender)
+            insertFormatted(NSAttributedString(string: prefix, attributes: typingAttributes), replacementRange: selectedRange())
+        }
+    }
+
+    @objc func insertTable() {
+        let table = NSTextTable()
+        table.numberOfColumns = 2
+        table.collapsesBorders = true
+        let content = NSMutableAttributedString()
+        for row in 0..<3 {
+            for column in 0..<2 {
+                let cell = NSTextTableBlock(table: table, startingRow: row, rowSpan: 1, startingColumn: column, columnSpan: 1)
+                cell.setWidth(1, type: .absoluteValueType, for: .border)
+                cell.setWidth(6, type: .absoluteValueType, for: .padding)
+                cell.setBorderColor(.separatorColor)
+                let style = NSMutableParagraphStyle()
+                style.textBlocks = [cell]
+                content.append(NSAttributedString(string: "Cell\n", attributes: [.paragraphStyle: style, .font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.labelColor]))
+            }
+        }
+        content.append(NSAttributedString(string: "\n", attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.labelColor]))
+        insertFormatted(content, replacementRange: selectedRange())
+    }
+
+    /// Replacing attributed content directly avoids AppKit's input-method insertion
+    /// normalizing pasted font sizes to the current typing font.
+    private func insertFormatted(_ replacement: NSAttributedString, replacementRange range: NSRange) {
+        guard let storage = textStorage,
+              shouldChangeText(in: range, replacementString: replacement.string) else { return }
+        let old = storage.attributedSubstring(from: range)
+        undoManager?.registerUndo(withTarget: self) { view in
+            view.insertFormatted(old, replacementRange: NSRange(location: range.location, length: replacement.length))
+        }
+        storage.replaceCharacters(in: range, with: replacement)
+        setSelectedRange(NSRange(location: range.location + replacement.length, length: 0))
+        if replacement.length > 0 { typingAttributes = replacement.attributes(at: replacement.length - 1, effectiveRange: nil) }
         didChangeText()
+    }
+
+    private func transformSelection(paragraphs: Bool = false, _ transform: (NSMutableAttributedString) -> Void) {
+        var range = selectedRange()
+        if paragraphs { range = (string as NSString).paragraphRange(for: range) }
+        guard range.length > 0, let storage = textStorage else { return }
+        let updated = NSMutableAttributedString(attributedString: storage.attributedSubstring(from: range))
+        transform(updated)
+        insertFormatted(updated, replacementRange: range)
+        setSelectedRange(NSRange(location: range.location, length: updated.length))
+    }
+
+    /// Native insertion participates in undo and preserves unrelated attributes.
+    func toggle(_ trait: RichTextDocument.Traits) {
+        let range = selectedRange()
+        if range.length == 0 {
+            let text = FormattingTextView()
+            text.textStorage?.setAttributedString(NSAttributedString(string: "x", attributes: typingAttributes))
+            text.setSelectedRange(NSRange(location: 0, length: 1))
+            text.toggle(trait)
+            typingAttributes = text.textStorage?.attributes(at: 0, effectiveRange: nil) ?? typingAttributes
+            return
+        }
+        let adding = !selectionHas(trait, in: range)
+        transformSelection { storage in
+            let full = NSRange(location: 0, length: storage.length)
+            if trait == .bold || trait == .italic {
+                storage.enumerateAttribute(.font, in: full) { value, span, _ in
+                    let font = value as? NSFont ?? NSFont.systemFont(ofSize: 13)
+                    var symbolic = font.fontDescriptor.symbolicTraits
+                    let changed: NSFontDescriptor.SymbolicTraits = trait == .bold ? .bold : .italic
+                    if adding { symbolic.formUnion(changed) } else { symbolic.subtract(changed) }
+                    storage.addAttribute(.font, value: NSFont(descriptor: font.fontDescriptor.withSymbolicTraits(symbolic), size: font.pointSize) ?? font, range: span)
+                }
+            } else {
+                storage.addAttribute(.underlineStyle, value: adding ? 1 : 0, range: full)
+            }
+        }
     }
 
     private func selectionHas(_ trait: RichTextDocument.Traits, in range: NSRange) -> Bool {
