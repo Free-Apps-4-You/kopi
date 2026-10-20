@@ -136,7 +136,7 @@ struct RadialContentTests {
                     #expect(!lines.isEmpty)
                     for line in lines {
                         #expect(layout.contains(line.rect))
-                        #expect(CTLineGetTypographicBounds(line.text, nil, nil, nil) - CTLineGetTrailingWhitespaceWidth(line.text) <= line.rect.width + 0.5)
+                        #expect(line.width <= line.rect.width + 0.5)
                     }
                 }
             }

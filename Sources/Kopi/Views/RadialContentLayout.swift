@@ -98,6 +98,9 @@ struct RadialTextFlow {
     struct Line {
         let text: CTLine
         let rect: CGRect
+        var width: CGFloat {
+            CGFloat(CTLineGetTypographicBounds(text, nil, nil, nil)) - CTLineGetTrailingWhitespaceWidth(text)
+        }
     }
 
     static func lines(_ text: String, layout: RadialContentLayout, color: NSColor) -> [Line] {

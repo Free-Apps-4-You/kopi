@@ -90,7 +90,7 @@ struct RadialView: View {
                 cg.translateBy(x: 0, y: size.height)
                 cg.scaleBy(x: 1, y: -1)
                 for line in lines {
-                    let width = CTLineGetTypographicBounds(line.text, nil, nil, nil) - CTLineGetTrailingWhitespaceWidth(line.text)
+                    let width = line.width
                     // Short snippets stay centered. Long paragraphs follow the
                     // wedge's changing left edge for more readable, fuller lines.
                     let inset = lines.count < 4 ? max(0, (line.rect.width - width) / 2) : 0
