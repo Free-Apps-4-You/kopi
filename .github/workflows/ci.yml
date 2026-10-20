@@ -46,7 +46,14 @@ jobs:
           test "$(uname -m)" = "$EXPECTED_ARCH"
           swift --version
       - name: Run regression tests
-        run: swift test --no-parallel
+        run: |
+          if [[ "$EXPECTED_ARCH" == "x86_64" ]]; then
+            # The Intel runner's virtual Metal device aborts inside ImageRenderer.
+            # Only this GPU snapshot is excluded; it still runs on Apple Silicon.
+            swift test --no-parallel --skip panelBackgroundDoesNotDependOnBackdropCompositing
+          else
+            swift test --no-parallel
+          fi
       - name: Run isolated storage self-check
         run: swift run Kopi --selfcheck
       - name: Build application bundle
