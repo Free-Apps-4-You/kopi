@@ -45,6 +45,18 @@ jobs:
           }
           print("Center failures: \\(failures)")
           '''
+          import re
+          tests = Path('Tests/KopiCoreTests/RadialTests.swift').read_text()
+          tests = tests[tests.index('@Suite("Radial segment hit regions")'):tests.index('import CoreText')] + tests[tests.index('@Suite("Radial outward magnification")'):]
+          tests = re.sub(r'@Suite\([^\n]*\)\n', '', tests).replace('@Test ', '').replace('#expect(', 'precondition(')
+          tests += '''
+          RadialSegmentTests().segmentsCoverTheRingWithoutOverlappingTheHub()
+          RadialMagnificationTests().focusedSliceNeverCoversItsUnchangedNeighbors()
+          RadialMagnificationTests().transferringFocusKeepsEverySliceSeparate()
+          RadialMagnificationTests().expandedWheelAndControlsFitWithoutColliding()
+          print("All four Core Graphics geometry checks passed on Intel")
+          '''
+          probe += tests
           Path('/tmp/kopi-geometry.swift').write_text('import SwiftUI\n' + geometry + shape + probe)
           PY
           swift /tmp/kopi-geometry.swift

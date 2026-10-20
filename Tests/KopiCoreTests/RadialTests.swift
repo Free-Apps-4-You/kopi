@@ -82,21 +82,24 @@ import SwiftUI
 
 @Suite("Radial segment hit regions")
 struct RadialSegmentTests {
+    // Test the drawn contours through Core Graphics. SwiftUI Path.contains can
+    // misclassify a hole's center after scaling on macOS 15 Intel.
     @Test func segmentsCoverTheRingWithoutOverlappingTheHub() {
         let rect = CGRect(x: 0, y: 0, width: 456, height: 456)
         for count in 1...8 {
-            let paths = (0..<count).map { RadialSegment(index: $0, count: count).path(in: rect) }
-            #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 228, y: 228), eoFill: count == 1) }, "count \(count)")
-            #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 0, y: 0), eoFill: count == 1) })
+            let paths = (0..<count).map { RadialSegment(index: $0, count: count).path(in: rect).cgPath }
+            let rule: CGPathFillRule = count == 1 ? .evenOdd : .winding
+            #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 228, y: 228), using: rule) }, "count \(count)")
+            #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 0, y: 0), using: rule) })
             for degrees in stride(from: 0.314, to: 360.0, by: 7.0) {
                 let angle = degrees * Double.pi / 180
                 let point = CGPoint(x: 228 + sin(angle) * 158, y: 228 - cos(angle) * 158)
-                #expect(paths.filter { $0.contains(point, eoFill: count == 1) }.count == 1)
+                #expect(paths.filter { $0.contains(point, using: rule) }.count == 1)
             }
             for index in 0..<count {
                 let angle = Double(index) * 2 * Double.pi / Double(count)
                 let point = CGPoint(x: 228 + sin(angle) * 158, y: 228 - cos(angle) * 158)
-                #expect(paths[index].contains(point, eoFill: count == 1))
+                #expect(paths[index].contains(point, using: rule))
             }
         }
     }
@@ -157,15 +160,16 @@ struct RadialMagnificationTests {
         let rect = CGRect(x: 0, y: 0, width: radius * 2, height: radius * 2)
         for count in 1...8 {
             let original = (0..<count).map { RadialSegment(index: $0, count: count).path(in: rect) }
+            let rule: CGPathFillRule = count == 1 ? .evenOdd : .winding
             for focused in 0..<count {
                 let maximum = count == 1 ? RadialGeometry.singleItemHoverScale : RadialGeometry.hoverScale
                 for progress in [0.0, 0.2, 0.5, 0.8, 1] {
                     let scale = 1 + (maximum - 1) * progress
                     let transform = CGAffineTransform(a: scale, b: 0, c: 0, d: scale,
                                                       tx: radius * (1 - scale), ty: radius * (1 - scale))
-                    let enlarged = original[focused].applying(transform)
+                    let enlarged = original[focused].applying(transform).cgPath
                     for index in 0..<count where index != focused {
-                        let neighbor = original[index]
+                        let neighbor = original[index].cgPath
                         // Probe all the way through and beyond both slices, not
                         // just the original ring's middle radius.
                         for degrees in stride(from: 0.731, to: 360.0, by: 3.0) {
@@ -173,12 +177,12 @@ struct RadialMagnificationTests {
                             for distance in [49.0, 60, 85, 150, 210, 230, 265, 278] {
                                 let point = CGPoint(x: radius + sin(angle) * distance,
                                                     y: radius - cos(angle) * distance)
-                                #expect(!(enlarged.contains(point, eoFill: count == 1) && neighbor.contains(point, eoFill: count == 1)),
+                                #expect(!(enlarged.contains(point, using: rule) && neighbor.contains(point, using: rule)),
                                         "count \(count), focused \(focused), neighbor \(index), progress \(progress)")
                             }
                         }
                     }
-                    #expect(!enlarged.contains(CGPoint(x: radius, y: radius), eoFill: count == 1))
+                    #expect(!enlarged.contains(CGPoint(x: radius, y: radius), using: rule))
                 }
             }
         }
@@ -196,14 +200,14 @@ struct RadialMagnificationTests {
                         let scale = 1 + (RadialGeometry.hoverScale - 1) * weight
                         let transform = CGAffineTransform(a: scale, b: 0, c: 0, d: scale,
                                                           tx: radius * (1 - scale), ty: radius * (1 - scale))
-                        return RadialSegment(index: index, count: count).path(in: rect).applying(transform)
+                        return RadialSegment(index: index, count: count).path(in: rect).applying(transform).cgPath
                     }
                     for degrees in stride(from: 0.731, to: 360.0, by: 5.0) {
                         let angle = degrees * Double.pi / 180
                         for distance in [55.0, 80, 150, 210, 260] {
                             let point = CGPoint(x: radius + sin(angle) * distance,
                                                 y: radius - cos(angle) * distance)
-                            #expect(paths.filter { $0.contains(point, eoFill: count == 1) }.count <= 1)
+                            #expect(paths.filter { $0.contains(point, using: .winding) }.count <= 1)
                         }
                     }
                 }
