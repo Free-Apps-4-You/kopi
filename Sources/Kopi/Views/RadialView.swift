@@ -19,7 +19,7 @@ struct RadialView: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(KopiTheme.surface.opacity(reduceTransparency ? 1 : 0.1))
+            Circle().fill(KopiTheme.surface.opacity(reduceTransparency ? 1 : 0.12))
                 .overlay(Circle().strokeBorder(Color.primary.opacity(0.1)))
                 .shadow(color: .black.opacity(0.2), radius: 20, y: 9)
                 .frame(width: wheelSize, height: wheelSize).position(x: 300, y: 300)
@@ -49,7 +49,7 @@ struct RadialView: View {
         return Button { choose(index) } label: {
             ZStack {
                 shape.fill((selected ? KopiTheme.selectedCardSurface : KopiTheme.cardSurface)
-                    .opacity(reduceTransparency ? 1 : (selected ? 0.46 : 0.18)))
+                    .opacity(reduceTransparency ? 1 : (selected ? 0.552 : 0.216)))
                 if item.kind == .image {
                     RadialImagePreview(item: item, previews: previews, layout: RadialContentLayout(index: index, count: count), bounds: bounds, reduceTransparency: reduceTransparency)
                 } else {
@@ -72,7 +72,7 @@ struct RadialView: View {
         .disabled(state.loading)
         .accessibilityLabel("\(index + 1). \(state.copiesOnly ? "Copy" : "Paste") \(item.displayTitle)")
         .accessibilityAddTraits(selected ? [.isSelected] : [])
-        .scaleEffect(selected && !reduceMotion ? (count == 1 ? 1.04 : RadialGeometry.hoverScale) : 1,
+        .scaleEffect(selected && !reduceMotion ? (count == 1 ? 1.248 : RadialGeometry.hoverScale) : 1,
                      anchor: UnitPoint(x: bounds.midX / wheelSize, y: bounds.midY / wheelSize))
         .shadow(color: selected ? .black.opacity(0.26) : .clear, radius: 13, y: 3)
         .zIndex(selected ? 2 : 0)
@@ -94,7 +94,7 @@ struct RadialView: View {
                     // Short snippets stay centered. Long paragraphs follow the
                     // wedge's changing left edge for more readable, fuller lines.
                     let inset = lines.count < 4 ? max(0, (line.rect.width - width) / 2) : 0
-                    cg.textPosition = CGPoint(x: line.rect.minX + inset, y: size.height - line.rect.minY - 14)
+                    cg.textPosition = CGPoint(x: line.rect.minX + inset, y: size.height - line.rect.minY - 12)
                     CTLineDraw(line.text, cg)
                 }
             }
@@ -114,7 +114,7 @@ struct RadialView: View {
                 }
             }
             .foregroundStyle(.secondary).frame(width: 92, height: 92)
-            .background(KopiTheme.surface.opacity(reduceTransparency ? 1 : 0.35), in: Circle())
+            .background(KopiTheme.surface.opacity(reduceTransparency ? 1 : 0.42), in: Circle())
             .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
             .contentShape(Circle())
         }

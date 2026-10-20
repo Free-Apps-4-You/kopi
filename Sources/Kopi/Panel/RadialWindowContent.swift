@@ -36,7 +36,7 @@ final class RadialWindowContent: NSView {
     func setPresented(_ presented: Bool) {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.11
-            blur.animator().alphaValue = presented ? 0.68 : 0
+            blur.animator().alphaValue = presented ? 0.816 : 0
         }
     }
 

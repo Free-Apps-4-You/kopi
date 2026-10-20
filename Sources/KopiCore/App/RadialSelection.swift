@@ -4,7 +4,7 @@ import Foundation
 public enum RadialGeometry {
     public static let outerRadius = 220.0
     public static let cancelRadius = 48.0
-    public static let hoverScale = 1.06
+    public static let hoverScale = 1.272
 }
 
 public enum RadialSelection {

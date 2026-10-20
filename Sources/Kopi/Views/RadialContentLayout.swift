@@ -61,7 +61,7 @@ struct RadialContentLayout {
         return best
     }
 
-    func textRows(lineHeight: Double = 18) -> [CGRect] {
+    func textRows(lineHeight: Double = 16) -> [CGRect] {
         // Sparse wheels have broad sectors; one comfortable column is easier to
         // scan than text flowing around both sides of the hub.
         if count <= 3 {
@@ -105,7 +105,7 @@ struct RadialTextFlow {
 
     static func lines(_ text: String, layout: RadialContentLayout, color: NSColor) -> [Line] {
         let normalized = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        let font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        let font = NSFont.systemFont(ofSize: 11, weight: .medium)
         let attributes: [NSAttributedString.Key: Any] = [
             NSAttributedString.Key(kCTFontAttributeName as String): font,
             NSAttributedString.Key(kCTForegroundColorAttributeName as String): color.cgColor
