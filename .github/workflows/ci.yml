@@ -1,0 +1,31 @@
+name: macOS checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Swift toolchain
+        run: swift --version
+      - name: Run regression tests
+        run: swift test --no-parallel
+      - name: Run isolated storage self-check
+        run: swift run Copily --selfcheck
+      - name: Build application bundle
+        run: scripts/build-app.sh
+      - name: Verify application signature
+        run: codesign --verify --deep --strict dist/Copily.app

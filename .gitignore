@@ -1,0 +1,29 @@
+# SwiftPM and generated application bundles
+.build/
+.swiftpm/
+dist/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Local workspace state and captured clipboard review material
+.commandcode/
+.codex/
+.DS_Store
+review/
+docs/reference-review/
+plan.md
+
+# Local credentials, signing material, and runtime data
+.env
+.env.*
+!.env.example
+*.p12
+*.p8
+*.key
+*.mobileprovision
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.log

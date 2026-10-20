@@ -1,0 +1,4 @@
+module NotesScripting {
+    umbrella header "Notes.h"
+    export *
+}
