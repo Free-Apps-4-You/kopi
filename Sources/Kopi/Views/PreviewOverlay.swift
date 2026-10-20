@@ -159,8 +159,6 @@ struct PreviewOverlay: View {
     private func actions(_ preview: PanelViewModel.PreviewState) -> some View {
         let summary = preview.detail?.summary ?? model.summary(for: preview.itemID)
         return HStack(spacing: 4) {
-            Button { commands.paste(preview.itemID) } label: { Label("Paste", systemImage: "doc.on.clipboard") }
-                .kopiTooltip("Paste into the previous app")
             Button { commands.copy(preview.itemID) } label: { Label("Copy", systemImage: "doc.on.doc") }
                 .kopiTooltip("Copy")
             Button { Task { await model.beginEditing(preview.itemID) } } label: { Label("Edit", systemImage: "pencil") }

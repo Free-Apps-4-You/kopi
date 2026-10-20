@@ -51,11 +51,8 @@ struct RadialTests {
         #expect(try JSONDecoder().decode(KopiSettings.self, from: Data("{}".utf8)).radialEnabled)
         var settings = KopiSettings()
         settings.radialEnabled = false
-        settings.radialCopiesOnly = true
         let data = try JSONEncoder().encode(settings)
         #expect(try !JSONDecoder().decode(KopiSettings.self, from: data).radialEnabled)
-        #expect(try JSONDecoder().decode(KopiSettings.self, from: data).radialCopiesOnly)
-        #expect(try !JSONDecoder().decode(KopiSettings.self, from: Data("{}".utf8)).radialCopiesOnly)
     }
 }
 

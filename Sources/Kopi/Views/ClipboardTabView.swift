@@ -212,7 +212,6 @@ struct ClipboardCardView: View {
             .accessibilityLabel(accessibilityLabel)
             .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : [.isButton])
             .accessibilityAction(.default) { copy() }
-            .accessibilityAction(named: "Paste") { commands.paste(item.id) }
             .accessibilityAction(named: "Copy") { commands.copy(item.id) }
             .accessibilityAction(named: isExpanded ? "Collapse" : "Expand") { toggleExpansion() }
             .accessibilityAction(named: "Edit") { Task { await model.beginEditing(item.id) } }
@@ -393,7 +392,6 @@ struct ClipboardCardView: View {
 
     @ViewBuilder
     private var menu: some View {
-        Button("Paste", systemImage: "doc.on.clipboard") { commands.paste(item.id) }
         Button("Maximise", systemImage: "arrow.up.left.and.arrow.down.right") { toggleExpansion() }
         Button("Copy", systemImage: "doc.on.doc") { commands.copy(item.id) }
         if let color {
@@ -416,7 +414,7 @@ struct ClipboardCardView: View {
     }
 
     /// A click copies the card through the same path as ⌘C, moves the selection to it
-    /// so Return pastes the card just copied, and leaves the panel open for the next one.
+    /// so Return copies the card just copied, and leaves the panel open for the next one.
     private func copy() {
         model.selectForPaste(item.id)
         commands.copy(item.id)

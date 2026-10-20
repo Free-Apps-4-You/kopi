@@ -263,13 +263,13 @@ struct PanelRootView: View {
     private var hints: String {
         if model.section == .passwords { return "Passwords are encrypted · Show requires macOS authentication · Hidden again after 20 seconds" }
         if model.section == .notes {
-            return "Click copies · Return pastes · Space maximises · ⌘C copies · Drag to another app"
+            return "Click copies · Return copies · Space maximises · ⌘C copies · Drag to another app"
         }
         if model.source == .collection {
-            return "Click copies · Return pastes · ⌘V collects · Space previews · ⌘E edits"
+            return "Click copies · Return copies · ⌘V collects · Space previews · ⌘E edits"
         }
         let pinHint = model.source == .pinned ? "⌘P unpins" : "⌘P pins"
-        return "Click copies · Return pastes · ⌘C copies · Space previews · ⌘E edits · \(pinHint) · ⌘1–9 pastes"
+        return "Click copies · Return copies · ⌘C copies · Space previews · ⌘E edits · \(pinHint) · ⌘1–9 copies"
     }
 }
 

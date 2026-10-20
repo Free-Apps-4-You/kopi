@@ -18,7 +18,7 @@ Intel & Apple Silicon · macOS 14+ · [MIT licensed](LICENSE)
 
 ## Keep the good stuff close
 
-- **A clipboard at your pointer.** Hold ⌥Space, point at a card, and release to paste. Preview recent clips and images, and scroll or press ← → for older copies.
+- **A clipboard at your pointer.** Hold ⌥Space, point at a card, and release to copy. Preview recent clips and images, and scroll or press ← → for older copies.
 - **Find that copy.** Search text, links, images, and files, or filter by the app they came from.
 - **Save your favorites.** Pin useful clips and keep reusable snippets in Collection.
 - **See more at a glance.** Preview images, highlighted code, and colors with HEX/RGB copy controls.
@@ -29,9 +29,9 @@ Intel & Apple Silicon · macOS 14+ · [MIT licensed](LICENSE)
 ## Made to stay out of your way
 
 Open Kopi from the menu bar, hover over your MacBook notch or the top-center edge of any display, or press **⌥⌘V**.
-Click a card to copy it, press **Return** to paste, or **Space** for a closer look.
+Click a card to copy it, press **Return** to copy, or **Space** for a closer look.
 Radial clipboard is on by default. Use **↑ ↓** or **1–8** to select a clip, **Return** to confirm, and **Esc** to cancel. Choose copy-only mode, change its hold shortcut, or switch it off in **Settings → Opening**.
-Auto-paste requires Accessibility permission; copying works without it.
+Select a clip to copy it, then press ⌘V in your destination app.
 
 | Colors, without the guesswork | Your clipboard, your choices |
 | :---: | :---: |

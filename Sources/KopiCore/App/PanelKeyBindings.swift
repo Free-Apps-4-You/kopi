@@ -52,19 +52,18 @@ public enum PanelKeyAction: Sendable, Hashable {
     case dismiss
     case closePreview
     case cancelEditor
-    case pasteSelection
     case copySelection
     case togglePreview
     case editSelection
     case togglePin
     /// Cards are numbered from one, in grid order.
-    case pasteVisibleCard(Int)
+    case copyVisibleCard(Int)
     /// Adds the current clipboard to the collection shelf.
     case pasteIntoCollection
     case none
 }
 
-/// Keyboard interaction of the panel: Return pastes, ⌘C copies, Space previews,
+/// Keyboard interaction of the panel: Return copies, ⌘C copies, Space previews,
 /// ⌘E edits, ⌘P pins and, on the collection shelf, ⌘V collects a copy.
 ///
 /// Kept apart from AppKit so every key the panel reacts to can be checked as data.
@@ -87,7 +86,7 @@ public enum PanelKeyBindings {
         if event.presentation == .preview {
             if event.keyCode == escapeKeyCode { return .closePreview }
             if event.keyCode == returnKeyCode || event.keyCode == keypadEnterKeyCode {
-                return event.hasVisibleCard ? .pasteSelection : .none
+                return event.hasVisibleCard ? .copySelection : .none
             }
             return .none
         }
@@ -96,7 +95,7 @@ public enum PanelKeyBindings {
             return .dismiss
         }
         if event.keyCode == returnKeyCode || event.keyCode == keypadEnterKeyCode {
-            return event.hasVisibleCard ? .pasteSelection : .none
+            return event.hasVisibleCard ? .copySelection : .none
         }
         if event.modifiers == [.command] {
             switch event.keyCode {
@@ -106,7 +105,7 @@ public enum PanelKeyBindings {
             case vKeyCode: return event.isCollectionShown && !event.isTextEditing ? .pasteIntoCollection : .none
             default:
                 if let index = digitKeyCodes.firstIndex(of: event.keyCode), index < event.visibleCardCount {
-                    return .pasteVisibleCard(index + 1)
+                    return .copyVisibleCard(index + 1)
                 }
                 return .none
             }

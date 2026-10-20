@@ -116,15 +116,10 @@ struct SettingsView: View {
             )) {
                 ForEach(RadialTrigger.allCases) { Text($0.title).tag($0) }
             }.disabled(!settings.settings.radialEnabled)
-            detail("Hold \(settings.settings.radialTrigger.title) to open at your pointer. Move toward a card and release the key to \(settings.settings.radialCopiesOnly ? "copy" : "paste"). Return to the center or press Esc to cancel.")
-            Toggle("Copy only instead of pasting", isOn: Binding(
-                get: { settings.settings.radialCopiesOnly },
-                set: { value in settings.update { $0.radialCopiesOnly = value } }
-            )).disabled(!settings.settings.radialEnabled)
+            detail("Hold \(settings.settings.radialTrigger.title) to open at your pointer. Move toward a card and release the key to copy. Return to the center or press Esc to cancel.")
             detail("Recent clips only. Scroll or use ← → for older clips. Use ↑ ↓, Tab, or 1–8 to select, and Return to confirm. Images include previews.")
             Button("Open radial clipboard") { model.showRadial() }
                 .disabled(!settings.settings.radialEnabled)
-            detail("Pasting uses macOS Accessibility access. Without it, the card is copied so you can press ⌘V.")
         }
     }
 
@@ -288,11 +283,11 @@ struct SettingsView: View {
     private var shortcutReference: some View {
         SectionBox("In Kopi") {
             shortcut("Copy selected card", "⌘C")
-            shortcut("Paste into your previous app", "↩")
+            shortcut("Copy selected card", "↩")
             shortcut("Preview selected card", "Space")
             shortcut("Edit selected card", "⌘E")
             shortcut("Pin selected clipboard card", "⌘P")
-            shortcut("Paste a numbered card", "⌘1–9")
+            shortcut("Copy a numbered card", "⌘1–9")
             shortcut("Close preview or panel", "Esc")
             detail("While editing, shortcuts stay with the editor. Unsaved changes are protected before leaving.")
         }

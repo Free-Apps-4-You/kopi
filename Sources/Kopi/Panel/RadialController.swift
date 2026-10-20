@@ -12,7 +12,6 @@ final class RadialState: ObservableObject {
     @Published var loading = false
     @Published var presented = false
     @Published var trigger = RadialTrigger.optionSpace
-    @Published var copiesOnly = false
     @Published var message = "No cards here yet"
     var pageCount: Int { max(1, (totalCount + 7) / 8) }
     var selectedItem: ClipboardItemSummary? {
@@ -52,10 +51,9 @@ final class RadialController {
         clipboardPanel = panel
     }
 
-    func configure(enabled: Bool, trigger: RadialTrigger, copiesOnly: Bool) {
+    func configure(enabled: Bool, trigger: RadialTrigger) {
         if !enabled || state.trigger != trigger { finish(commit: false) }
         state.trigger = trigger
-        state.copiesOnly = copiesOnly
         let registered = hotkey.register(enabled ? trigger.hotkey : nil,
             onPress: { [weak self] in self?.open() },
             onRelease: { [weak self] in self?.finish(commit: true) })
@@ -228,7 +226,6 @@ final class RadialController {
             if let chosen { state.selected = chosen } else { updateSelection() }
         }
         let item = commit ? state.selectedItem : nil
-        let copiesOnly = state.copiesOnly
         isOpen = false
         generation = UUID()
         loadTask?.cancel()
@@ -252,16 +249,8 @@ final class RadialController {
             }
             do {
                 _ = try await service.copyToPasteboard(item.id)
-                let canPaste = generation == closing && !isOpen
-                if canPaste, restoreFocus, let target, !target.isTerminated { target.activate() }
-                guard !copiesOnly, canPaste, let target, !target.isTerminated,
-                      target.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
-                    toast.show(copiesOnly ? "Copied to clipboard" : "Copied — press ⌘V to paste", on: ScreenGeometry.displayUnderPointer()); return
-                }
-                try? await Task.sleep(for: .milliseconds(100))
-                if !PasteSynthesizer().paste(into: target.processIdentifier) {
-                    toast.show("Copied — press ⌘V to paste", on: ScreenGeometry.displayUnderPointer())
-                }
+                if generation == closing, !isOpen, restoreFocus, let target, !target.isTerminated { target.activate() }
+                toast.show("Copied to clipboard", on: ScreenGeometry.displayUnderPointer())
             } catch {
                 toast.show("Couldn’t copy this card", on: ScreenGeometry.displayUnderPointer())
             }

@@ -5,7 +5,7 @@ import KopiCore
 /// Editor of one card, opened with ⌘E.
 ///
 /// Every kind saves through ``HistoryStore`` only; the pasteboard changes when the user
-/// copies or pastes the card, never because of a save. Image and file cards accept a
+/// copies the card, never because of a save. Image and file cards accept a
 /// label, and the label never touches the original content.
 struct ClipboardEditorView: View {
     @ObservedObject var model: PanelViewModel

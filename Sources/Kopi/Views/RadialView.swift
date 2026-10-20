@@ -14,7 +14,7 @@ struct RadialView: View {
     @StateObject private var entrance = PanelState(false)
 
     private var shown: Bool { entrance.value && state.presented }
-    private var action: String { state.copiesOnly ? "copy" : "paste" }
+    private var action: String { "copy" }
     private let wheelSize = RadialGeometry.outerRadius * 2
 
     var body: some View {
@@ -80,7 +80,7 @@ struct RadialView: View {
         .buttonStyle(.plain)
         .contentShape(shape, eoFill: count == 1)
         .disabled(state.loading)
-        .accessibilityLabel("\(index + 1). \(state.copiesOnly ? "Copy" : "Paste") \(item.displayTitle)")
+        .accessibilityLabel("\(index + 1). Copy \(item.displayTitle)")
         .accessibilityAddTraits(selected ? [.isSelected] : [])
         // Scaling from the shared wheel center preserves the wedge's boundary
         // rays. It grows outward inside its own sector, never over a neighbor.

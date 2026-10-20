@@ -168,7 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.appearance = settings.appearance.nsAppearance
         environment.apply(settings: settings)
         panelController?.settingsDidChange()
-        radialController?.configure(enabled: settings.radialEnabled, trigger: settings.radialTrigger, copiesOnly: settings.radialCopiesOnly)
+        radialController?.configure(enabled: settings.radialEnabled, trigger: settings.radialTrigger)
         if hotKey?.register(settings.activeHotkey, onPress: { [weak panelController] in panelController?.toggle() }) == false,
            settings.activeHotkey != nil {
             environment.panelModel.queueStatus("That shortcut is already taken by another application.")

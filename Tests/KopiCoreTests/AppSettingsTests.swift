@@ -61,16 +61,16 @@ struct HotkeyTests {
 
 @Suite("Panel key bindings")
 struct PanelKeyBindingsTests {
-    @Test("Return pastes the card in view and Escape dismisses")
+    @Test("Return copies the card in view and Escape dismisses")
     func pasteAndDismiss() {
         let returnPress = PanelKeyEvent(keyCode: PanelKeyBindings.returnKeyCode, hasVisibleCard: true, visibleCardCount: 4)
-        #expect(PanelKeyBindings.action(for: returnPress) == .pasteSelection)
+        #expect(PanelKeyBindings.action(for: returnPress) == .copySelection)
         #expect(PanelKeyBindings.action(for: PanelKeyEvent(keyCode: PanelKeyBindings.returnKeyCode)) == .none)
-        #expect(PanelKeyBindings.action(for: PanelKeyEvent(keyCode: PanelKeyBindings.keypadEnterKeyCode, hasVisibleCard: true)) == .pasteSelection)
+        #expect(PanelKeyBindings.action(for: PanelKeyEvent(keyCode: PanelKeyBindings.keypadEnterKeyCode, hasVisibleCard: true)) == .copySelection)
         #expect(PanelKeyBindings.action(for: PanelKeyEvent(keyCode: PanelKeyBindings.escapeKeyCode)) == .dismiss)
     }
 
-    @Test("Return also pastes while the search field has the focus")
+    @Test("Return also copies while the search field has the focus")
     func returnWhileSearching() {
         let press = PanelKeyEvent(
             keyCode: PanelKeyBindings.returnKeyCode,
@@ -78,10 +78,10 @@ struct PanelKeyBindingsTests {
             hasVisibleCard: true,
             visibleCardCount: 3
         )
-        #expect(PanelKeyBindings.action(for: press) == .pasteSelection)
+        #expect(PanelKeyBindings.action(for: press) == .copySelection)
     }
 
-    @Test("Command shortcuts copy, edit, pin and paste numbered cards")
+    @Test("Command shortcuts copy, edit, pin and copy numbered cards")
     func commandShortcuts() {
         func command(_ keyCode: UInt16) -> PanelKeyEvent {
             PanelKeyEvent(keyCode: keyCode, modifiers: [.command], hasVisibleCard: true, visibleCardCount: 9)
@@ -89,8 +89,8 @@ struct PanelKeyBindingsTests {
         #expect(PanelKeyBindings.action(for: command(PanelKeyBindings.cKeyCode)) == .copySelection)
         #expect(PanelKeyBindings.action(for: command(PanelKeyBindings.eKeyCode)) == .editSelection)
         #expect(PanelKeyBindings.action(for: command(PanelKeyBindings.pKeyCode)) == .togglePin)
-        #expect(PanelKeyBindings.action(for: command(PanelKeyBindings.digitKeyCodes[0])) == .pasteVisibleCard(1))
-        #expect(PanelKeyBindings.action(for: command(PanelKeyBindings.digitKeyCodes[8])) == .pasteVisibleCard(9))
+        #expect(PanelKeyBindings.action(for: command(PanelKeyBindings.digitKeyCodes[0])) == .copyVisibleCard(1))
+        #expect(PanelKeyBindings.action(for: command(PanelKeyBindings.digitKeyCodes[8])) == .copyVisibleCard(9))
         // Nothing is pasted for a number past the last visible card.
         #expect(PanelKeyBindings.action(for: PanelKeyEvent(
             keyCode: PanelKeyBindings.digitKeyCodes[3],
@@ -175,7 +175,7 @@ struct PanelKeyBindingsTests {
         )) == .none)
     }
 
-    @Test("A preview closes with Escape and pastes with Return")
+    @Test("A preview closes with Escape and copies with Return")
     func previewKeys() {
         #expect(PanelKeyBindings.action(for: PanelKeyEvent(
             keyCode: PanelKeyBindings.escapeKeyCode,
@@ -185,7 +185,7 @@ struct PanelKeyBindingsTests {
             keyCode: PanelKeyBindings.returnKeyCode,
             presentation: .preview,
             hasVisibleCard: true
-        )) == .pasteSelection)
+        )) == .copySelection)
     }
 
     @Test("Unrelated keys stay with the text input")

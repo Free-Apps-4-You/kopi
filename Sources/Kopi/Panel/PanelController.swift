@@ -5,13 +5,10 @@ import KopiCore
 
 /// Commands the panel content asks of the window layer.
 ///
-/// Pasting needs the application the user came from and event posting, which belong to
-/// AppKit; the view models stay free of both. The closures capture the controller
+/// The closures capture the controller
 /// weakly, so the hosted view never keeps its own window alive.
 struct PanelCommands: Sendable {
-    var paste: @MainActor (ClipboardItemID) -> Void
     var copy: @MainActor (ClipboardItemID) -> Void
-    var pasteNote: @MainActor (NotesNoteMetadata) -> Void = { _ in }
     var dismiss: @MainActor () -> Void
     var openSettings: @MainActor () -> Void
 }
@@ -22,7 +19,6 @@ final class PanelController: NSObject {
     private let model: PanelViewModel
     private let service: ClipboardService
     private let settings: KopiSettingsStore
-    private let pasteSynthesizer = PasteSynthesizer()
     private let toast = PanelToastController()
 
     private var panel: KopiPanel?
@@ -206,23 +202,7 @@ final class PanelController: NSObject {
         }
     }
 
-    // MARK: - Pasting and copying
-
-    /// Return: writes the card through the capture service, dismisses the panel and
-    /// posts ⌘V into the application the user came from.
-    func paste(_ itemID: ClipboardItemID) {
-        let target = previousApplication
-        Task { @MainActor in
-            do {
-                _ = try await service.copyToPasteboard(itemID)
-            } catch {
-                model.report(error: error)
-                return
-            }
-            dismiss(restoreFocus: true)
-            await postPaste(into: target)
-        }
-    }
+    // MARK: - Copying
 
     /// ⌘C: copies the card and leaves the panel open.
     func copy(_ itemID: ClipboardItemID) {
@@ -234,30 +214,6 @@ final class PanelController: NSObject {
             } catch {
                 model.report(error: error)
             }
-        }
-    }
-
-    func pasteNote(_ note: NotesNoteMetadata) {
-        let target = previousApplication
-        Task { @MainActor in
-            guard await model.notes.copyText(of: note) else { return }
-            dismiss(restoreFocus: true)
-            await postPaste(into: target)
-        }
-    }
-
-    private func postPaste(into application: NSRunningApplication?) async {
-        guard let application,
-              !application.isTerminated,
-              application.processIdentifier != ProcessInfo.processInfo.processIdentifier
-        else {
-            toast.show("Copied — press ⌘V to paste", on: ScreenGeometry.displayUnderPointer())
-            return
-        }
-        // The target has to be frontmost before the keystroke lands in it.
-        try? await Task.sleep(for: .milliseconds(90))
-        if !pasteSynthesizer.paste(into: application.processIdentifier) {
-            toast.show("Copied — press ⌘V to paste", on: ScreenGeometry.displayUnderPointer())
         }
     }
 
@@ -283,9 +239,7 @@ final class PanelController: NSObject {
         let panel = KopiPanel.make()
         panel.delegate = self
         let commands = PanelCommands(
-            paste: { [weak self] itemID in self?.paste(itemID) },
             copy: { [weak self] itemID in self?.copy(itemID) },
-            pasteNote: { [weak self] note in self?.pasteNote(note) },
             dismiss: { [weak self] in self?.dismiss() },
             openSettings: { [weak self] in self?.model.onSettingsRequested?() }
         )
@@ -486,13 +440,12 @@ final class PanelController: NSObject {
                 isTextEditing: isEditingText, hasVisibleCard: notes.pasteTarget != nil,
                 visibleCardCount: notes.filteredNotes.count))
             switch action {
-            case .pasteSelection: if let note = notes.pasteTarget { pasteNote(note) }
             case .copySelection: if let note = notes.pasteTarget { Task { await notes.copyText(of: note) } }
             case .togglePreview:
                 if notes.preview != nil { notes.closePreview() }
                 else if let note = notes.pasteTarget { Task { await notes.preparePreview(note) } }
             case .editSelection: break
-            case .pasteVisibleCard(let position): pasteNote(notes.filteredNotes[position - 1])
+            case .copyVisibleCard(let position): Task { await notes.copyText(of: notes.filteredNotes[position - 1]) }
             case .dismiss: dismiss()
             case .cancelEditor: notes.closePreview()
             default: return false
@@ -516,8 +469,6 @@ final class PanelController: NSObject {
             model.closePreview()
         case .cancelEditor:
             model.cancelEditor()
-        case .pasteSelection:
-            if let itemID = model.pasteTarget { paste(itemID) }
         case .copySelection:
             if let itemID = model.pasteTarget { copy(itemID) }
         case .togglePreview:
@@ -532,9 +483,9 @@ final class PanelController: NSObject {
             if let itemID = model.pasteTarget {
                 Task { await model.togglePin(itemID) }
             }
-        case .pasteVisibleCard(let position):
+        case .copyVisibleCard(let position):
             if model.visibleCards.indices.contains(position - 1) {
-                paste(model.visibleCards[position - 1].id)
+                copy(model.visibleCards[position - 1].id)
             }
         case .pasteIntoCollection:
             Task { await model.pasteClipboardIntoCollection() }
@@ -547,9 +498,9 @@ final class PanelController: NSObject {
     /// Whether the keys belong to a text input.
     ///
     /// The search field takes the keyboard whenever the panel opens, so an empty one
-    /// still counts as the grid: Return pastes, Space previews and, on the collection,
+    /// still counts as the grid: Return copies, Space previews and, on the collection,
     /// ⌘V collects. Once the field holds text the user is searching, and the keys are
-    /// left to it — except Return, which pastes in this panel by design. While a field
+    /// left to it — except Return, which copies in this panel by design. While a field
     /// is edited its window field editor is the first responder, which is why both are
     /// recognised here.
     private var isEditingText: Bool {

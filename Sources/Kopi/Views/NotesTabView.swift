@@ -197,7 +197,6 @@ struct NoteCardView: View {
         .accessibilityElement(children: .contain)
         .accessibilityLabel(note.title.isEmpty ? "Untitled note" : note.title)
         .accessibilityAction { Task { await model.copyText(of: note) } }
-        .accessibilityAction(named: "Paste") { commands.pasteNote(note) }
         .accessibilityAction(named: "Maximise") { Task { await model.preparePreview(note) } }
         .accessibilityAction(named: "Copy Text") { Task { await model.copyText(of: note) } }
         .accessibilityAction(named: "Open in Apple Notes") { Task { await model.openInNotes(note) } }
@@ -316,7 +315,6 @@ struct NoteCardView: View {
     }
 
     @ViewBuilder private var actions: some View {
-        Button("Paste", systemImage: "doc.on.clipboard") { commands.pasteNote(note) }
         Button("Maximise", systemImage: "arrow.up.left.and.arrow.down.right") { Task { await model.preparePreview(note) } }
         Button("Copy Text", systemImage: "doc.on.doc") { Task { await model.copyText(of: note) } }
         Button("Open in Apple Notes", systemImage: "arrow.up.forward.app") { Task { await model.openInNotes(note) } }
@@ -354,8 +352,6 @@ struct NotesPreviewView: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             Divider().overlay(KopiTheme.border(contrast: contrast))
                             HStack(spacing: 14) {
-                                Button { commands.pasteNote(preview.metadata) } label: { Label("Paste", systemImage: "doc.on.clipboard") }
-                                    .kopiTooltip("Paste into the previous app")
                                 Button { Task { await model.copyText(of: preview.metadata) } } label: { Label("Copy Text", systemImage: "doc.on.doc") }
                                     .kopiTooltip("Copy Text")
                                 Button { Task { await model.openInNotes(preview.metadata) } } label: { Label("Open in Apple Notes", systemImage: "arrow.up.forward.app") }
