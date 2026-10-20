@@ -86,17 +86,17 @@ struct RadialSegmentTests {
         let rect = CGRect(x: 0, y: 0, width: 456, height: 456)
         for count in 1...8 {
             let paths = (0..<count).map { RadialSegment(index: $0, count: count).path(in: rect) }
-            #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 228, y: 228)) }, "count \(count)")
-            #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 0, y: 0)) })
+            #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 228, y: 228), eoFill: true) }, "count \(count)")
+            #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 0, y: 0), eoFill: true) })
             for degrees in stride(from: 0.314, to: 360.0, by: 7.0) {
                 let angle = degrees * Double.pi / 180
                 let point = CGPoint(x: 228 + sin(angle) * 158, y: 228 - cos(angle) * 158)
-                #expect(paths.filter { $0.contains(point) }.count == 1)
+                #expect(paths.filter { $0.contains(point, eoFill: true) }.count == 1)
             }
             for index in 0..<count {
                 let angle = Double(index) * 2 * Double.pi / Double(count)
                 let point = CGPoint(x: 228 + sin(angle) * 158, y: 228 - cos(angle) * 158)
-                #expect(paths[index].contains(point))
+                #expect(paths[index].contains(point, eoFill: true))
             }
         }
     }
@@ -173,12 +173,12 @@ struct RadialMagnificationTests {
                             for distance in [49.0, 60, 85, 150, 210, 230, 265, 278] {
                                 let point = CGPoint(x: radius + sin(angle) * distance,
                                                     y: radius - cos(angle) * distance)
-                                #expect(!(enlarged.contains(point) && neighbor.contains(point)),
+                                #expect(!(enlarged.contains(point, eoFill: true) && neighbor.contains(point, eoFill: true)),
                                         "count \(count), focused \(focused), neighbor \(index), progress \(progress)")
                             }
                         }
                     }
-                    #expect(!enlarged.contains(CGPoint(x: radius, y: radius)))
+                    #expect(!enlarged.contains(CGPoint(x: radius, y: radius), eoFill: true))
                 }
             }
         }
@@ -203,7 +203,7 @@ struct RadialMagnificationTests {
                         for distance in [55.0, 80, 150, 210, 260] {
                             let point = CGPoint(x: radius + sin(angle) * distance,
                                                 y: radius - cos(angle) * distance)
-                            #expect(paths.filter { $0.contains(point) }.count <= 1)
+                            #expect(paths.filter { $0.contains(point, eoFill: true) }.count <= 1)
                         }
                     }
                 }

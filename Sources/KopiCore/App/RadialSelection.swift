@@ -4,8 +4,8 @@ import Foundation
 public enum RadialGeometry {
     public static let outerRadius = 220.0
     public static let cancelRadius = 48.0
-    public static let hoverScale = 1.272
-    public static let singleItemHoverScale = 1.248
+    public static let hoverScale = 1.05
+    public static let singleItemHoverScale = hoverScale
     // Keep the full outward zoom and its controls inside the transparent window.
     public static let windowWidth = 600.0
     public static let windowHeight = 672.0
