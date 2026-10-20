@@ -139,7 +139,7 @@ final class ManualCaptureTicker: CaptureTicking, @unchecked Sendable {
     /// Runs one tick if the service still has one scheduled; `false` when it does not.
     @discardableResult
     func fire() async -> Bool {
-        let tick = lock.withLock { cancelled ? nil : tick }
+        let tick = lock.withLock { self.cancelled ? nil : self.tick }
         guard let tick else { return false }
         await tick()
         return true
@@ -184,7 +184,7 @@ final class ManualLifecycleObserver: PasteboardLifecycleObserving, @unchecked Se
 
     /// Delivers an event and waits until the service has handled it.
     func emit(_ event: PasteboardLifecycleEvent) async {
-        let handler = lock.withLock { handler }
+        let handler = lock.withLock { self.handler }
         await handler?(event)
     }
 
