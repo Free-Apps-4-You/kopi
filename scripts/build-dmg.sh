@@ -1,5 +1,5 @@
 #!/bin/bash
-# Package the app produced by build-app.sh into a read-only drag-to-install image.
+# Package the app produced by build-app.sh as a DMG and an application ZIP.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -12,11 +12,14 @@ codesign --verify --deep --strict "$bundle"
 version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$bundle/Contents/Info.plist")
 architecture="$(uname -m)"
 image="$root/dist/Copily-$version-$architecture.dmg"
+archive="$root/dist/Copily-$version-$architecture.zip"
 staging="$(mktemp -d "${TMPDIR:-/tmp}/copily-dmg.XXXXXX")"
 trap 'rm -rf "$staging"' EXIT
 ditto "$bundle" "$staging/Copily.app"
 ln -s /Applications "$staging/Applications"
 hdiutil create -volname Copily -srcfolder "$staging" -ov -format UDZO "$image"
 hdiutil verify "$image"
-(cd "$root/dist" && shasum -a 256 "$(basename "$image")") > "$image.sha256"
+ditto -c -k --sequesterRsrc --keepParent "$bundle" "$archive"
+unzip -tq "$archive"
 echo "Built $image"
+echo "Built $archive"

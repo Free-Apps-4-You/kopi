@@ -33,13 +33,13 @@ jobs:
         run: scripts/build-app.sh
       - name: Verify application signature
         run: codesign --verify --deep --strict dist/Copily.app
-      - name: Create and verify disk image
+      - name: Create and verify DMG and application ZIP
         run: scripts/build-dmg.sh
-      - name: Upload disk image and checksum
+      - name: Upload DMG and application ZIP
         uses: actions/upload-artifact@v4
         with:
           name: Copily-macOS
           path: |
             dist/*.dmg
-            dist/*.dmg.sha256
+            dist/*.zip
           if-no-files-found: error
