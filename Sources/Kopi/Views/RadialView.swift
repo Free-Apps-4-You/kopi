@@ -186,17 +186,31 @@ struct RadialSegment: Shape {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let radius = min(rect.width, rect.height) / 2
         let inner = radius * (88.0 / 228.0)
-        let hole = Path(ellipseIn: CGRect(x: center.x - inner, y: center.y - inner,
-                                         width: inner * 2, height: inner * 2))
-        if count <= 1 { return Path(ellipseIn: rect).subtracting(hole) }
-        let sweep = 360.0 / Double(count)
-        let start = Angle.degrees(Double(index) * sweep - 90 - sweep / 2)
-        let end = Angle.degrees(Double(index) * sweep - 90 + sweep / 2)
+        let sweep = 2 * Double.pi / Double(max(1, count))
+        let start = Double(index) * sweep - .pi / 2 - sweep / 2
+        // A one-degree chord deviates from the circle by less than 0.01 pt.
+        // Explicit contours avoid OS-dependent boolean-path hit-test results at
+        // the hub's center, and need no live path subtraction during animation.
+        let steps = max(2, Int(ceil(sweep / (.pi / 180))))
+        func point(_ angle: Double, radius: Double) -> CGPoint {
+            let x = cos(angle), y = sin(angle)
+            return CGPoint(x: center.x + (abs(x) < 1e-10 ? 0 : x) * radius,
+                           y: center.y + (abs(y) < 1e-10 ? 0 : y) * radius)
+        }
+        let outer = (0...steps).map { point(start + sweep * Double($0) / Double(steps), radius: radius) }
+        let hole = (0...steps).reversed().map { point(start + sweep * Double($0) / Double(steps), radius: inner) }
         var path = Path()
-        path.move(to: center)
-        path.addArc(center: center, radius: radius, startAngle: start, endAngle: end, clockwise: false)
+        if let first = outer.first { path.move(to: first) }
+        for point in outer.dropFirst() { path.addLine(to: point) }
+        if count <= 1 {
+            path.closeSubpath()
+            if let first = hole.first { path.move(to: first) }
+            for point in hole.dropFirst() { path.addLine(to: point) }
+        } else {
+            for point in hole { path.addLine(to: point) }
+        }
         path.closeSubpath()
-        return path.subtracting(hole)
+        return path
     }
 }
 
