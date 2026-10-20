@@ -139,25 +139,33 @@ struct RadialView: View {
             HStack(spacing: 4) {
                 Label("Recent", systemImage: "clock")
                     .font(.system(size: 10, weight: .semibold)).foregroundStyle(KopiTheme.accent)
+                    .fixedSize(horizontal: true, vertical: false)
                     .padding(.horizontal, 12)
-                Text(state.items.isEmpty ? state.message : "\(state.totalCount) clips").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text(state.items.isEmpty ? state.message : "\(state.totalCount) clips")
+                    .font(.system(size: 10)).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 Divider().frame(height: 17).padding(.horizontal, 7)
                 Button { page(-1) } label: { Image(systemName: "chevron.left").frame(width: 20, height: 26) }
                     .disabled(state.page == 0 || state.loading).accessibilityLabel("Previous eight cards")
                 Text("\(state.page + 1)/\(state.pageCount)").font(.system(size: 10, weight: .medium, design: .rounded))
-                    .monospacedDigit().foregroundStyle(.secondary).frame(minWidth: 25)
+                    .monospacedDigit().foregroundStyle(.secondary).frame(width: 38)
                 Button { page(1) } label: { Image(systemName: "chevron.right").frame(width: 20, height: 26) }
                     .disabled(state.page + 1 >= state.pageCount || state.loading).accessibilityLabel("Next eight cards")
             }
             .buttonStyle(.plain)
+            .lineLimit(1)
+            .frame(width: 250, height: 28)
             .padding(5).background(KopiTheme.surface, in: Capsule())
             .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08)))
             .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
             Text(state.selectedItem == nil ? "\(state.trigger.title)  ·  Scroll / ← → older  ·  Esc cancel" : "Release to \(action)  ·  Return confirms  ·  Center cancels")
                 .font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .frame(width: 280)
                 .padding(.horizontal, 12).padding(.vertical, 4)
                 .background(KopiTheme.surface, in: Capsule())
-        }.fixedSize()
+        }.frame(width: 304)
     }
 }
 
