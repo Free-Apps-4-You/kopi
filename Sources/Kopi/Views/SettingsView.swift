@@ -116,8 +116,12 @@ struct SettingsView: View {
             )) {
                 ForEach(RadialTrigger.allCases) { Text($0.title).tag($0) }
             }.disabled(!settings.settings.radialEnabled)
-            detail("Hold \(settings.settings.radialTrigger.title) to open at your pointer. Move toward a card and release the key to paste. Return to the center or press Esc to cancel.")
-            detail("Scroll while holding to switch Recent, Pinned, and Collection. Up to eight cards per ring. The panel shortcut stays the same.")
+            detail("Hold \(settings.settings.radialTrigger.title) to open at your pointer. Move toward a card and release the key to \(settings.settings.radialCopiesOnly ? "copy" : "paste"). Return to the center or press Esc to cancel.")
+            Toggle("Copy only instead of pasting", isOn: Binding(
+                get: { settings.settings.radialCopiesOnly },
+                set: { value in settings.update { $0.radialCopiesOnly = value } }
+            )).disabled(!settings.settings.radialEnabled)
+            detail("Scroll to switch rings. Use ← → or Shift-scroll for more cards, ↑ ↓ to select, and Return to confirm. Number keys 1–8 select a card. The panel shortcut stays the same.")
             Button("Open radial clipboard") { model.showRadial() }
                 .disabled(!settings.settings.radialEnabled)
             detail("Pasting uses macOS Accessibility access. Without it, the card is copied so you can press ⌘V.")

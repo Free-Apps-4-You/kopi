@@ -2,11 +2,16 @@ import Foundation
 
 /// Evenly spaced clockwise directions starting at the top, with a safe center cancel zone.
 public enum RadialSelection {
-    public static func index(x: Double, y: Double, count: Int) -> Int? {
-        guard count > 0, hypot(x, y) >= 48 else { return nil }
+    public static func index(x: Double, y: Double, count: Int, previous: Int? = nil) -> Int? {
+        guard count > 0, hypot(x, y) >= 88 else { return nil }
         let slots = min(count, 8)
         let step = 2 * Double.pi / Double(slots)
-        let angle = atan2(x, y) + step / 2
+        let direction = atan2(x, y)
+        if let previous, previous >= 0, previous < slots {
+            let difference = atan2(sin(direction - Double(previous) * step), cos(direction - Double(previous) * step))
+            if abs(difference) < step / 2 + .pi / 36 { return previous }
+        }
+        let angle = direction + step / 2
         return (Int(floor(angle / step)) + slots) % slots
     }
 }
