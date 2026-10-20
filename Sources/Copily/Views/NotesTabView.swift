@@ -194,6 +194,32 @@ struct NoteCardView: View {
     private var isHovering: Bool { hover.value }
 
     var body: some View {
+        interactiveCard
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(note.title.isEmpty ? "Untitled note" : note.title)
+        .accessibilityAction { Task { await model.copyText(of: note) } }
+        .accessibilityAction(named: "Paste") { commands.pasteNote(note) }
+        .accessibilityAction(named: "Maximise") { Task { await model.preparePreview(note) } }
+        .accessibilityAction(named: "Copy Text") { Task { await model.copyText(of: note) } }
+        .accessibilityAction(named: "Open in Apple Notes") { Task { await model.openInNotes(note) } }
+    }
+
+    private var interactiveCard: some View {
+        styledCard
+        .contentShape(shape)
+        .contentShape(.dragPreview, shape)
+        .onTapGesture { Task { await model.copyText(of: note) } }
+        .onDrag { model.dragProvider(for: note) }
+        .overlay(alignment: .topTrailing) {
+            MaximiseCardButton(action: { Task { await model.preparePreview(note) } }, isFocused: model.selection == note.id || isHovering)
+            .padding(6)
+        }
+        .contextMenu { actions }
+        .onHover { hover.value = $0 }
+        .animation(CopilyMotion.animation(CopilyMotion.hover, reduceMotion: reduceMotion), value: isHovering)
+    }
+
+    private var styledCard: some View {
         VStack(alignment: .leading, spacing: 0) {
             cardContent
             cardFooter
@@ -219,24 +245,6 @@ struct NoteCardView: View {
                             radius: CopilyTheme.Elevation.cardRadius, y: CopilyTheme.Elevation.cardY)
             }
         }
-        .contentShape(shape)
-        .contentShape(.dragPreview, shape)
-        .onTapGesture { Task { await model.copyText(of: note) } }
-        .onDrag { model.dragProvider(for: note) }
-        .overlay(alignment: .topTrailing) {
-            MaximiseCardButton(action: { Task { await model.preparePreview(note) } }, isFocused: model.selection == note.id || isHovering)
-            .padding(6)
-        }
-        .contextMenu { actions }
-        .onHover { hover.value = $0 }
-        .animation(CopilyMotion.animation(CopilyMotion.hover, reduceMotion: reduceMotion), value: isHovering)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(note.title.isEmpty ? "Untitled note" : note.title)
-        .accessibilityAction { Task { await model.copyText(of: note) } }
-        .accessibilityAction(named: "Paste") { commands.pasteNote(note) }
-        .accessibilityAction(named: "Maximise") { Task { await model.preparePreview(note) } }
-        .accessibilityAction(named: "Copy Text") { Task { await model.copyText(of: note) } }
-        .accessibilityAction(named: "Open in Apple Notes") { Task { await model.openInNotes(note) } }
     }
 
     private var cardContent: some View {
