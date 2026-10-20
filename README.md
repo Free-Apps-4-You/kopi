@@ -6,7 +6,7 @@
 
 Your clipboard, ready when you need it. A native, open-source clipboard manager for macOS.
 
-**[Download for Mac (.dmg)](https://github.com/qa-ali/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.dmg)** · [Application ZIP](https://github.com/qa-ali/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.zip) · [Releases](https://github.com/qa-ali/copily/releases)
+**[Download for Mac (.dmg)](https://github.com/Free-Apps-4-You/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.dmg)** · [Application ZIP](https://github.com/Free-Apps-4-You/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.zip) · [Releases](https://github.com/Free-Apps-4-You/copily/releases)
 
 Apple Silicon · macOS 14+ · [MIT licensed](LICENSE)
 
@@ -37,7 +37,7 @@ Auto-paste requires Accessibility permission; copying works without it.
 
 ## Get started
 
-1. [Download the DMG](https://github.com/qa-ali/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.dmg).
+1. [Download the DMG](https://github.com/Free-Apps-4-You/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.dmg).
 2. Open it and drag **Copily** into **Applications**.
 3. Launch Copily and start copying.
 
@@ -46,6 +46,6 @@ The current preview is ad-hoc signed and not notarized. macOS may block installa
 ## Open source, open to ideas
 
 Copily is free and open source under the [MIT license](LICENSE).
-Found a bug or have an idea? [Open an issue](https://github.com/qa-ali/copily/issues/new) or send a pull request.
+Found a bug or have an idea? [Open an issue](https://github.com/Free-Apps-4-You/copily/issues/new) or send a pull request.
 
 [Contributing](CONTRIBUTING.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)
