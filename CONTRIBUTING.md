@@ -24,7 +24,7 @@ By submitting a contribution, you agree to license it under the project's MIT li
 ## Publishing a release
 
 Update the version and build number in `Packaging/Info.plist`, commit the change,
-and push an annotated version tag such as `v0.3.2`. The tag must match the app version.
+and push an annotated version tag such as `v0.3.3`. The tag must match the app version.
 GitHub Actions runs the tests and packaged-app self-check on both Apple Silicon
 and Intel macOS 15 runners. After both pass, it publishes separate DMG and application
 ZIP downloads for each processor under Releases. Both builds require macOS 14+.
@@ -33,6 +33,8 @@ Use the tag annotation for the release notes.
 The offscreen panel pixel snapshot runs on Apple Silicon. It is excluded on the
 Intel CI virtual machine because its virtual Metal device aborts in SwiftUI's
 `ImageRenderer`; all other tests and the packaged executable self-check run on both.
+Radial geometry tests check the drawn contours with Core Graphics, which avoids
+SwiftUI `Path.contains` misclassifying the center during scaling on Intel.
 
 Main-branch builds remain available as Actions artifacts. The README's download
 links always point to the latest published installers.
