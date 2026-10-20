@@ -1,5 +1,14 @@
 # Copily
 
+### [Download Copily for macOS (.dmg)](https://github.com/qa-ali/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.dmg)
+
+Apple Silicon · macOS 14 or later · v0.1.0 Preview
+
+[Application ZIP](https://github.com/qa-ali/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.zip) · [Release details](https://github.com/qa-ali/copily/releases/tag/v0.1.0)
+
+Open the DMG and drag Copily to Applications. This preview is ad-hoc signed and
+not notarized; macOS may block installation.
+
 Copily is a native macOS clipboard manager that lives in the menu bar. It opens a
 panel directly beneath the MacBook notch, or at the top centre of a display
 without one. The captured window contains no artificial camera-housing extension.
