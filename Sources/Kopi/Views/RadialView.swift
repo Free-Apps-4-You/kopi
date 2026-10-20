@@ -24,9 +24,9 @@ struct RadialView: View {
                 .shadow(color: .black.opacity(0.2), radius: 20, y: 9)
                 .frame(width: wheelSize, height: wheelSize).position(x: 300, y: 300)
                 .allowsHitTesting(false)
-            RadialWheel(state: state, previews: previews, choose: choose,
-                        emphasis: RadialEmphasis(selected: !reduceMotion && !state.loading ? state.selected : nil))
-                .position(x: 300, y: 300)
+            ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
+                segment(item, index: index)
+            }
             center.position(x: 300, y: 300)
             dock.position(x: 300, y: 564).zIndex(3)
 
@@ -38,6 +38,69 @@ struct RadialView: View {
         .animation(reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.82), value: state.selected)
         .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.9), value: state.items)
         .onAppear { entrance.value = true }
+    }
+
+    private func segment(_ item: ClipboardItemSummary, index: Int) -> some View {
+        let count = max(1, state.items.count)
+        let angle = Double(index) * 2 * .pi / Double(count) - .pi / 2
+        let selected = state.selected == index && !state.loading
+        let shape = RadialSegment(index: index, count: count)
+        let bounds = shape.path(in: CGRect(x: 0, y: 0, width: wheelSize, height: wheelSize)).boundingRect
+        return Button { choose(index) } label: {
+            ZStack {
+                shape.fill((selected ? KopiTheme.selectedCardSurface : KopiTheme.cardSurface)
+                    .opacity(reduceTransparency ? 1 : (selected ? 0.552 : 0.216)))
+                if item.kind == .image {
+                    RadialImagePreview(item: item, previews: previews, layout: RadialContentLayout(index: index, count: count), bounds: bounds, reduceTransparency: reduceTransparency)
+                } else {
+                    segmentText(item, index: index)
+                }
+                Text("\(index + 1)")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(selected ? KopiTheme.accent : .secondary)
+                    .frame(width: 22, height: 22)
+                    .position(x: 220 + cos(angle) * 67, y: 220 + sin(angle) * 67)
+                shape.stroke(selected ? KopiTheme.accent : Color.primary.opacity(0.14), lineWidth: selected ? 1.5 : 0.75)
+            }
+            .frame(width: wheelSize, height: wheelSize)
+            .clipShape(shape)
+            .contentShape(shape)
+            .opacity(state.loading ? 0.35 : 1)
+        }
+        .buttonStyle(.plain)
+        .contentShape(shape)
+        .disabled(state.loading)
+        .accessibilityLabel("\(index + 1). \(state.copiesOnly ? "Copy" : "Paste") \(item.displayTitle)")
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+        .scaleEffect(selected && !reduceMotion ? (count == 1 ? 1.248 : RadialGeometry.hoverScale) : 1,
+                     anchor: UnitPoint(x: bounds.midX / wheelSize, y: bounds.midY / wheelSize))
+        .shadow(color: selected ? .black.opacity(0.26) : .clear, radius: 13, y: 3)
+        .zIndex(selected ? 2 : 0)
+        .position(x: 300, y: 300)
+        .transition(reduceMotion ? .identity : .opacity)
+    }
+
+    private func segmentText(_ item: ClipboardItemSummary, index: Int) -> some View {
+        let layout = RadialContentLayout(index: index, count: state.items.count)
+        let label = item.label?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = label.flatMap { $0.isEmpty ? nil : $0 } ?? (item.kind == .files ? item.displayTitle : item.excerpt)
+        return Canvas { context, size in
+            let lines = RadialTextFlow.lines(text, layout: layout, color: .labelColor)
+            context.withCGContext { cg in
+                cg.translateBy(x: 0, y: size.height)
+                cg.scaleBy(x: 1, y: -1)
+                for line in lines {
+                    let width = line.width
+                    // Short snippets stay centered. Long paragraphs follow the
+                    // wedge's changing left edge for more readable, fuller lines.
+                    let inset = lines.count < 4 ? max(0, (line.rect.width - width) / 2) : 0
+                    cg.textPosition = CGPoint(x: line.rect.minX + inset, y: size.height - line.rect.minY - 12)
+                    CTLineDraw(line.text, cg)
+                }
+            }
+        }
+        .frame(width: wheelSize, height: wheelSize)
+        .allowsHitTesting(false)
     }
 
     private var center: some View {
@@ -87,135 +150,18 @@ struct RadialView: View {
     }
 }
 
-/// The focus vector is interpolated once for the whole wheel. Every frame
-/// derives shared boundaries and fits content inside those exact boundaries.
-private struct RadialWheel: View, Animatable {
-    @ObservedObject var state: RadialState
-    let previews: PreviewStore
-    let choose: (Int) -> Void
-    nonisolated var emphasis: RadialEmphasis
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private let wheelSize = RadialGeometry.outerRadius * 2
-
-    nonisolated var animatableData: RadialEmphasis {
-        get { emphasis }
-        set { emphasis = newValue }
-    }
-
-    var body: some View {
-        let slices = RadialWheelLayout(count: state.items.count, emphasis: emphasis.values).slices
-        ZStack {
-            ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
-                segment(item, slice: slices[index])
-            }
-        }
-        .frame(width: wheelSize, height: wheelSize)
-        .transaction { $0.animation = nil }
-    }
-
-    private func segment(_ item: ClipboardItemSummary, slice: RadialSlice) -> some View {
-        let index = slice.index
-        let angle = slice.centerAngle - .pi / 2
-        let contentScale = 1 + (RadialGeometry.hoverScale - 1) * emphasis.weight(at: index)
-        let selected = state.selected == index && !state.loading
-        let shape = RadialSegment(slice: slice)
-        let bounds = shape.path(in: CGRect(x: 0, y: 0, width: wheelSize, height: wheelSize)).boundingRect
-        return Button { choose(index) } label: {
-            ZStack {
-                shape.fill((selected ? KopiTheme.selectedCardSurface : KopiTheme.cardSurface)
-                    .opacity(reduceTransparency ? 1 : (selected ? 0.552 : 0.216)))
-                if item.kind == .image {
-                    RadialImagePreview(item: item, previews: previews, layout: RadialContentLayout(slice: slice), bounds: bounds, reduceTransparency: reduceTransparency)
-                } else {
-                    segmentText(item, slice: slice, scale: contentScale)
-                }
-                Text("\(index + 1)")
-                    .font(.system(size: 10 * contentScale, weight: .semibold, design: .rounded))
-                    .foregroundStyle(selected ? KopiTheme.accent : .secondary)
-                    .frame(width: 22, height: 22)
-                    .position(x: 220 + cos(angle) * 67, y: 220 + sin(angle) * 67)
-                shape.stroke(selected ? KopiTheme.accent : Color.primary.opacity(0.14), lineWidth: selected ? 1.5 : 0.75)
-            }
-            .frame(width: wheelSize, height: wheelSize)
-            .clipShape(shape)
-            .contentShape(shape)
-            .opacity(state.loading ? 0.35 : 1)
-        }
-        .buttonStyle(.plain)
-        .contentShape(shape)
-        .disabled(state.loading)
-        .accessibilityLabel("\(index + 1). \(state.copiesOnly ? "Copy" : "Paste") \(item.displayTitle)")
-        .accessibilityAddTraits(selected ? [.isSelected] : [])
-        .zIndex(selected ? 1 : 0)
-        .position(x: wheelSize / 2, y: wheelSize / 2)
-        .transition(reduceMotion ? .identity : .opacity)
-    }
-
-    private func segmentText(_ item: ClipboardItemSummary, slice: RadialSlice, scale: Double) -> some View {
-        let layout = RadialContentLayout(slice: slice)
-        let label = item.label?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let text = label.flatMap { $0.isEmpty ? nil : $0 } ?? (item.kind == .files ? item.displayTitle : item.excerpt)
-        return Canvas { context, size in
-            let lines = RadialTextFlow.lines(text, layout: layout, color: .labelColor, scale: scale)
-            context.withCGContext { cg in
-                cg.translateBy(x: 0, y: size.height)
-                cg.scaleBy(x: 1, y: -1)
-                for line in lines {
-                    let width = line.width
-                    // Short snippets stay centered. Long paragraphs follow the
-                    // wedge's changing left edge for more readable, fuller lines.
-                    let inset = lines.count < 4 ? max(0, (line.rect.width - width) / 2) : 0
-                    cg.textPosition = CGPoint(x: line.rect.minX + inset, y: size.height - line.rect.minY - 12 * scale)
-                    CTLineDraw(line.text, cg)
-                }
-            }
-        }
-        .frame(width: wheelSize, height: wheelSize)
-        .allowsHitTesting(false)
-    }
-
-}
-
-private struct RadialEmphasis: VectorArithmetic, Sendable {
-    var values = Array(repeating: 0.0, count: 8)
-    static let zero = RadialEmphasis(selected: nil)
-
-    init(selected: Int?) {
-        if let selected, values.indices.contains(selected) { values[selected] = 1 }
-    }
-
-    func weight(at index: Int) -> Double { max(0, min(1, values[index])) }
-    var magnitudeSquared: Double { values.reduce(0) { $0 + $1 * $1 } }
-    mutating func scale(by rhs: Double) { values = values.map { $0 * rhs } }
-    static func + (lhs: Self, rhs: Self) -> Self {
-        var result = Self.zero
-        result.values = zip(lhs.values, rhs.values).map(+)
-        return result
-    }
-    static func - (lhs: Self, rhs: Self) -> Self {
-        var result = Self.zero
-        result.values = zip(lhs.values, rhs.values).map(-)
-        return result
-    }
-}
-
 /// Matches the controller's clockwise sectors, beginning at twelve o'clock.
 /// The hole is the same size as the pointer's safe cancellation area.
 struct RadialSegment: Shape {
-    let slice: RadialSlice
-
-    init(index: Int, count: Int) {
-        slice = RadialWheelLayout(count: max(1, count)).slices[index]
-    }
-    init(slice: RadialSlice) { self.slice = slice }
+    let index: Int
+    let count: Int
 
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let radius = min(rect.width, rect.height) / 2
         let inner = radius * (RadialGeometry.cancelRadius / RadialGeometry.outerRadius)
-        let sweep = slice.sweep
-        let start = slice.startAngle - .pi / 2
+        let sweep = 2 * Double.pi / Double(max(1, count))
+        let start = Double(index) * sweep - .pi / 2 - sweep / 2
         // A one-degree chord deviates from the circle by less than 0.01 pt.
         // Explicit contours avoid OS-dependent boolean-path hit-test results at
         // the hub's center, and need no live path subtraction during animation.
@@ -230,7 +176,7 @@ struct RadialSegment: Shape {
         var path = Path()
         if let first = outer.first { path.move(to: first) }
         for point in outer.dropFirst() { path.addLine(to: point) }
-        if slice.count <= 1 {
+        if count <= 1 {
             path.closeSubpath()
             if let first = hole.first { path.move(to: first) }
             for point in hole.dropFirst() { path.addLine(to: point) }

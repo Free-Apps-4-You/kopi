@@ -14,19 +14,12 @@ struct RadialContentLayout {
     private let cosHalf: Double
 
     init(index: Int, count: Int) {
-        self.init(slice: RadialWheelLayout(count: max(1, count)).slices[index])
-    }
-
-    init(slice: RadialSlice) {
-        index = slice.index
-        count = slice.count
-        let angle = slice.centerAngle - .pi / 2
+        self.index = index
+        self.count = max(1, min(8, count))
+        let angle = Double(index) * 2 * .pi / Double(self.count) - .pi / 2
         direction = CGPoint(x: cos(angle), y: sin(angle))
-        // A broad focused arc may exceed a semicircle. Keep its horizontal
-        // content in the forward half-plane so it never crosses the rear notch.
-        let half = min(.pi / 2, slice.sweep / 2)
-        sinHalf = sin(half)
-        cosHalf = cos(half)
+        sinHalf = sin(.pi / Double(self.count))
+        cosHalf = cos(.pi / Double(self.count))
     }
 
     func contains(_ rect: CGRect) -> Bool {
@@ -110,16 +103,16 @@ struct RadialTextFlow {
         }
     }
 
-    static func lines(_ text: String, layout: RadialContentLayout, color: NSColor, scale: Double = 1) -> [Line] {
+    static func lines(_ text: String, layout: RadialContentLayout, color: NSColor) -> [Line] {
         let normalized = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        let font = NSFont.systemFont(ofSize: 11 * scale, weight: .medium)
+        let font = NSFont.systemFont(ofSize: 11, weight: .medium)
         let attributes: [NSAttributedString.Key: Any] = [
             NSAttributedString.Key(kCTFontAttributeName as String): font,
             NSAttributedString.Key(kCTForegroundColorAttributeName as String): color.cgColor
         ]
         let string = NSAttributedString(string: normalized, attributes: attributes)
         let typesetter = CTTypesetterCreateWithAttributedString(string)
-        let rows = layout.textRows(lineHeight: 16 * scale)
+        let rows = layout.textRows()
         guard !rows.isEmpty, string.length > 0 else { return [] }
         var best: [Line] = []
         var bestConsumed = -1
