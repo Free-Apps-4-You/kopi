@@ -135,13 +135,14 @@ private final class ScriptingBridgeNotesFolder: NotesScriptingFolder {
         }
     }
 
-    func createNote(body: String) throws -> any NotesScriptingNote {
+    func folders() throws -> [any NotesScriptingFolder] {
         try recorder.perform {
-            let note = NotesScripting.NotesNote(properties: ["body": body])
-            folder.notes().add(note)
-            return ScriptingBridgeNotesNote(note, recorder: recorder)
+            ScriptingBridgeNotesApplication.elements(folder.folders()).map {
+                ScriptingBridgeNotesFolder(ScriptingBridgeNotesApplication.scriptingObject($0), recorder: recorder)
+            }
         }
     }
+
 }
 
 private final class ScriptingBridgeNotesNote: NotesScriptingNote {
@@ -186,10 +187,6 @@ private final class ScriptingBridgeNotesNote: NotesScriptingNote {
             guard let folder = note.container.get() as? SBObject else { return nil }
             return ScriptingBridgeNotesFolder(ScriptingBridgeNotesApplication.scriptingObject(folder), recorder: recorder)
         }
-    }
-
-    func setBody(_ body: String) throws {
-        try recorder.perform { note.body = body }
     }
 
     func show() throws {

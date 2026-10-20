@@ -26,7 +26,7 @@ protocol NotesScriptingFolder: AnyObject {
     func name() throws -> String
     func note(withID id: String) throws -> (any NotesScriptingNote)?
     func notes() throws -> [any NotesScriptingNote]
-    func createNote(body: String) throws -> any NotesScriptingNote
+    func folders() throws -> [any NotesScriptingFolder]
 }
 
 protocol NotesScriptingNote: AnyObject {
@@ -38,6 +38,5 @@ protocol NotesScriptingNote: AnyObject {
     func isPasswordProtected() throws -> Bool
     func isShared() throws -> Bool
     func containerFolder() throws -> (any NotesScriptingFolder)?
-    func setBody(_ body: String) throws
     func show() throws
 }

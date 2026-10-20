@@ -130,11 +130,11 @@ struct SettingsView: View {
 
     private var openingSection: some View {
         SectionBox("Opening & closing") {
-            Toggle("Open when the pointer rests on the notch", isOn: Binding(
+            Toggle("Open from the notch or top-center edge", isOn: Binding(
                 get: { settings.settings.hoverReveal.isEnabled },
                 set: { model.setHoverReveal(HoverReveal(isEnabled: $0, delay: settings.settings.hoverReveal.delay)) }
             ))
-            detail("Only the physical notch activates hover. Use the menu bar or shortcut on other displays.")
+            detail("Rest the pointer on the notch, or the top-center edge of any display, to open Kopi.")
             HStack(spacing: 12) {
                 Text("Wait before opening").frame(width: 135, alignment: .leading)
                 Slider(value: Binding(
@@ -363,18 +363,15 @@ private struct NotesSettingsSection: View {
                     get: { notes.state.isConnected },
                     set: { connected in Task { await notes.setConnected(connected) } }
                 ))
-                .disabled(notes.isChangingConnection || notes.composer != nil)
+                .disabled(notes.isChangingConnection)
                 .kopiTooltip(notes.state.isConnected ? "Uncheck to disconnect Apple Notes" : "Connect Apple Notes")
                 Spacer()
                 if notes.isChangingConnection { ProgressView().controlSize(.small) }
             }
             Text(notes.state.isConnected
                  ? "Uncheck to disconnect. Kopi stops syncing and removes its cached note cards. Your notes stay in Apple Notes."
-                 : "Connect to browse, search, and copy your Apple Notes as cards. Notes are read only after you connect.")
+                 : "Read-only: browse, search, and copy notes after connecting. macOS calls this Automation access; Kopi cannot create, edit, or delete notes.")
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if notes.composer != nil {
-                Text("Save or cancel your note edit before disconnecting.").foregroundStyle(.secondary)
-            }
             if let message = notes.state.unavailableMessage ?? notes.state.errorMessage {
                 Text(message).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
             } else if notes.state == .permissionDenied {

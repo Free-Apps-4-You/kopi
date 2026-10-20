@@ -33,74 +33,6 @@ struct NotesDomainTests {
         #expect(states[0].displayName == "Not Connected")
     }
 
-    @Test("Inline editing is limited to plain, unprotected notes")
-    func inlineEditingCompatibility() {
-        let folderID = NotesFolderID(rawValue: "folder")
-        let plain = NotesNoteMetadata(
-            id: NotesNoteID(rawValue: "1"),
-            folderID: folderID,
-            title: "Plain note",
-            excerpt: "Short body",
-            modificationDate: Date()
-        )
-        #expect(plain.supportsInlineEditing)
-        #expect(plain.requiresAppleNotes == false)
-
-        let rich = NotesNoteMetadata(
-            id: NotesNoteID(rawValue: "2"),
-            folderID: folderID,
-            title: "Checklist",
-            excerpt: "with attachments",
-            modificationDate: Date(),
-            hasRichContent: true,
-            attachmentCount: 2
-        )
-        #expect(rich.supportsInlineEditing == false)
-        #expect(rich.requiresAppleNotes)
-
-        let locked = NotesNoteMetadata(
-            id: NotesNoteID(rawValue: "3"),
-            folderID: folderID,
-            title: "Locked",
-            excerpt: "",
-            modificationDate: Date(),
-            isProtected: true
-        )
-        #expect(locked.supportsInlineEditing == false)
-    }
-
-    @Test("Drafts and save outcomes carry conflicts without overwriting")
-    func draftAndConflictOutcomes() {
-        let folderID = NotesFolderID(rawValue: "folder")
-        let metadata = NotesNoteMetadata(
-            id: NotesNoteID(rawValue: "1"),
-            folderID: folderID,
-            folderName: "Notes",
-            title: "Existing",
-            excerpt: "body",
-            modificationDate: Date()
-        )
-        let draft = NotesNoteDraft(
-            noteID: metadata.id,
-            title: "Edited outside",
-            body: "new body",
-            folderID: folderID,
-            baseModificationDate: metadata.modificationDate
-        )
-        #expect(draft.isNew == false)
-
-        let conflict = NotesSaveOutcome.conflict(current: metadata, draft: draft)
-        #expect(conflict.isConflict)
-        #expect(conflict.savedNote == nil)
-
-        let saved = NotesSaveOutcome.saved(metadata)
-        #expect(saved.isConflict == false)
-        #expect(saved.savedNote == metadata)
-
-        let newDraft = NotesNoteDraft(title: "New", body: "content")
-        #expect(newDraft.isNew)
-    }
-
     @Test("Notes pages default to 60 items")
     func notesPaging() {
         #expect(NotesPage().limit == NotesPage.defaultLimit)
@@ -129,19 +61,6 @@ struct NotesDomainTests {
 
         let progress = try await client.refresh()
         #expect(progress.isComplete)
-
-        let created = try await client.createNote(NotesNoteDraft(title: "T", body: "B", folderID: folderID))
-        #expect(created.title == "T")
-
-        let outcome = try await client.save(
-            NotesNoteDraft(
-                noteID: created.id,
-                title: "T2",
-                body: "B2",
-                baseModificationDate: Date(timeIntervalSince1970: 1)
-            )
-        )
-        #expect(outcome.isConflict)
 
         await client.disconnect()
         let afterDisconnect = await client.connectionState
@@ -203,8 +122,8 @@ private actor StubNotesClient: NotesClient {
         state = .disconnected
     }
 
-    func setIncludedFolders(_ folderIDs: Set<NotesFolderID>) async {
-        includedFolders = folderIDs
+    func setIncludedFolders(_ folderIDs: Set<NotesFolderID>?) async {
+        includedFolders = folderIDs ?? []
     }
 
     func accounts() async throws -> [NotesAccount] {
@@ -247,22 +166,6 @@ private actor StubNotesClient: NotesClient {
         let progress = NotesIndexingProgress(indexedNoteCount: 1, totalNoteCount: 1)
         state = .indexing(progress)
         return progress
-    }
-
-    func createNote(_ draft: NotesNoteDraft) async throws -> NotesNoteMetadata {
-        guard state.isConnected else { throw NotesClientError.notConnected }
-        let folderID = draft.folderID ?? NotesFolderID(rawValue: "folder")
-        return Self.metadata(folderID: folderID, title: draft.title)
-    }
-
-    func save(_ draft: NotesNoteDraft) async throws -> NotesSaveOutcome {
-        guard state.isConnected else { throw NotesClientError.notConnected }
-        let folderID = draft.folderID ?? NotesFolderID(rawValue: "folder")
-        let current = Self.metadata(folderID: folderID, title: draft.title)
-        if let base = draft.baseModificationDate, base != current.modificationDate {
-            return .conflict(current: current, draft: draft)
-        }
-        return .saved(current)
     }
 
     func openInNotes(id: NotesNoteID) async throws {

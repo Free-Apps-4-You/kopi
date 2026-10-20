@@ -64,7 +64,7 @@ struct PanelGeometryTests {
         #expect(placement.triggerRect == CGRect(x: 656, y: 944, width: 200, height: 38))
     }
 
-    @Test("A display without a notch has no hover target")
+    @Test("A display without a notch has a top-center hover target")
     func notchlessPlacement() {
         let display = Self.notchless
         #expect(display.hasNotch == false)
@@ -73,7 +73,7 @@ struct PanelGeometryTests {
         let placement = PanelGeometry.placement(for: display)
         #expect(placement.frame == CGRect(x: 840, y: 856, width: 880, height: 560))
         #expect(placement.frame.maxY == display.visibleFrame.maxY)
-        #expect(placement.triggerRect.isEmpty)
+        #expect(placement.triggerRect == CGRect(x: display.frame.midX - 90, y: display.frame.maxY - 10, width: 180, height: 10))
 
         // Unchanged: there is no neck and the body fills the whole window.
         #expect(placement.bodyRect == placement.frame)
@@ -153,12 +153,14 @@ struct PanelGeometryTests {
         #expect(PanelGeometry.triggerRect(for: display) == target.triggerRect)
     }
 
-    @Test("A display without a notch cannot activate hover")
+    @Test("A display without a notch activates hover at the top-center edge")
     func notchlessHoverTarget() {
         let display = Self.notchless
         let target = PanelGeometry.hoverTarget(for: display)
-        #expect(target.triggerRect.isEmpty)
-        #expect(target.comfortRect.isEmpty)
+        #expect(target.triggerRect.width == 180)
+        #expect(target.triggerRect.maxY == display.frame.maxY)
+        #expect(target.triggerRect.midX == display.frame.midX)
+        #expect(target.comfortRect == target.triggerRect)
     }
 
     @Test("Neither hover zone reaches above the display's top edge")
@@ -222,7 +224,7 @@ struct PanelGeometryTests {
         #expect(placement.frame.midX == Self.external.frame.midX)
         #expect(placement.frame.maxY == Self.external.visibleFrame.maxY)
         #expect(placement.frame.minX >= Self.external.frame.minX)
-        #expect(placement.triggerRect.isEmpty)
+        #expect(placement.triggerRect == CGRect(x: Self.external.frame.midX - 90, y: Self.external.frame.maxY - 10, width: 180, height: 10))
     }
 
     @Test("The grid uses three or four columns depending on the panel width")

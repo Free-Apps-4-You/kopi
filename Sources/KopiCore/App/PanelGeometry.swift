@@ -191,9 +191,14 @@ public enum PanelGeometry {
         return PanelAttachment(neckWidth: width, neckHeight: neckHeight, neckOffset: x + width / 2 - bodyRect.midX)
     }
 
-    /// Only the physical camera housing activates hover. No target on notchless screens.
+    /// Use the physical housing when present, otherwise a narrow top-center edge.
     public static func hoverTarget(for display: PanelDisplayGeometry) -> HoverTarget {
-        let rect = display.hasNotch ? display.notchBounds!.intersection(display.frame) : .zero
+        let width = min(180, max(0, display.frame.width))
+        let height = min(10, max(0, display.frame.height))
+        let rect = display.notchBounds?.intersection(display.frame) ?? CGRect(
+            x: display.frame.midX - width / 2, y: display.frame.maxY - height,
+            width: width, height: height
+        )
         return HoverTarget(triggerRect: rect, comfortRect: rect)
     }
 

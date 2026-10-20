@@ -282,16 +282,11 @@ private struct NotesPanelOverlays: View {
 
     var body: some View {
         ZStack {
-            if model.composer != nil {
-                NotesComposerView(model: model)
-                    .transition(KopiMotion.transition(.kopiSurface, reduceMotion: reduceMotion))
-            }
             if model.preview != nil {
                 NotesPreviewView(model: model, commands: commands)
                     .transition(KopiMotion.transition(.kopiSurface, reduceMotion: reduceMotion))
             }
         }
-        .animation(KopiMotion.animation(KopiMotion.overlay, reduceMotion: reduceMotion), value: model.composer?.id)
         .animation(KopiMotion.animation(KopiMotion.overlay, reduceMotion: reduceMotion), value: model.preview?.id)
     }
 }
@@ -303,7 +298,7 @@ private struct PanelFocusEffect: ViewModifier {
     @ObservedObject var passwords: PasswordsViewModel
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     private var focused: Bool {
-        model.preview != nil || model.editor != nil || model.newItemDraft != nil || notes.preview != nil || notes.composer != nil || passwords.draft != nil
+        model.preview != nil || model.editor != nil || model.newItemDraft != nil || notes.preview != nil || passwords.draft != nil
     }
     func body(content: Content) -> some View {
         content

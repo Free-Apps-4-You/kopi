@@ -1,12 +1,11 @@
 import Foundation
 
 /// The Notes tab as Apple Notes sees it: connection state, the searchable note index,
-/// and the rules around saving.
+/// and read-only access to content.
 ///
 /// The client asks for automation permission, keeps metadata separate from bodies so
 /// cards appear before indexing finishes, indexes changed bodies in bounded batches
-/// while reporting progress, and never overwrites a note that changed in Apple Notes
-/// while a draft was open. Notes stays the source of truth: nothing is stored locally
+/// while reporting progress, and never modifies Apple Notes. Notes stays the source of truth: nothing is stored locally
 /// and a failure here leaves Clipboard and Pinned untouched.
 public actor NotesAutomationClient: NotesClient {
     private struct IndexedNote: Sendable {
@@ -20,7 +19,6 @@ public actor NotesAutomationClient: NotesClient {
     private let runner: any NotesAutomationRunning
     private let permission: any NotesAutomationPermissionChecking
     private let batchSize: Int
-    private let conflictTolerance: TimeInterval
 
     private var state: NotesConnectionState = .disconnected
     private var connectionGeneration = UUID()
@@ -35,13 +33,11 @@ public actor NotesAutomationClient: NotesClient {
     public init(
         runner: any NotesAutomationRunning = ScriptingBridgeNotesRunner(),
         permission: any NotesAutomationPermissionChecking = AppleEventPermissionChecker(),
-        batchSize: Int = 20,
-        conflictTolerance: TimeInterval = 1
+        batchSize: Int = 20
     ) {
         self.runner = runner
         self.permission = permission
         self.batchSize = max(1, batchSize)
-        self.conflictTolerance = conflictTolerance
     }
 
     // MARK: - Connection
@@ -104,8 +100,8 @@ public actor NotesAutomationClient: NotesClient {
         return folders.filter { accountIDs.contains($0.accountID) }
     }
 
-    public func setIncludedFolders(_ folderIDs: Set<NotesFolderID>) async {
-        selection = NotesFolderSelection(includedFolderIDs: folderIDs, usesDefaultWhenEmpty: false)
+    public func setIncludedFolders(_ folderIDs: Set<NotesFolderID>?) async {
+        selection = NotesFolderSelection(includedFolderIDs: folderIDs ?? [], usesDefaultWhenEmpty: folderIDs == nil)
         pruneIndex()
     }
 
@@ -179,91 +175,6 @@ public actor NotesAutomationClient: NotesClient {
     public func refresh(progress: @escaping @Sendable (NotesIndexingProgress) -> Void) async throws -> NotesIndexingProgress {
         guard state != .disconnected else { throw NotesClientError.notConnected }
         return try await index(progress: progress, generation: connectionGeneration)
-    }
-
-    public func createNote(_ draft: NotesNoteDraft) async throws -> NotesNoteMetadata {
-        guard state.isConnected else { throw NotesClientError.notConnected }
-        let generation = connectionGeneration
-        guard let folderID = draft.folderID ?? selection.effectiveFolders(from: folders).first?.id else {
-            throw NotesClientError.folderNotFound(NotesFolderID(rawValue: ""))
-        }
-        let summary = try await runner.createNote(
-            in: folderID,
-            body: NotesNoteText.compose(title: draft.title, body: draft.body)
-        )
-        try requireCurrentConnection(generation)
-        // Notes reports the note's first line as its name, which is not always the
-        // title the user typed; the card shows what the composer wrote.
-        var record = IndexedNote(
-            summary: NotesNoteSummary(
-                id: summary.id,
-                folderID: summary.folderID ?? folderID,
-                folderName: summary.folderName,
-                title: draft.title,
-                modificationDate: summary.modificationDate,
-                isProtected: summary.isProtected,
-                isShared: summary.isShared
-            ),
-            folderID: folderID
-        )
-        if !summary.isProtected,
-           let content = try? await runner.noteContents(for: [NotesNoteLocation(id: summary.id, folderID: folderID)]).first {
-            record.plainText = content.plainText
-            record.bodyHTML = content.bodyHTML
-            record.inspection = NotesTextCompatibility.inspect(bodyHTML: content.bodyHTML)
-        }
-        try requireCurrentConnection(generation)
-        notes[summary.id] = record
-        notesByFolder[folderID] = (notesByFolder[folderID] ?? []).filter { $0 != summary.id }
-        notesByFolder[folderID, default: []].insert(summary.id, at: 0)
-        return metadata(for: record, folder: folderID)
-    }
-
-    /// Saves an edit, but never over an external change: the modification date is read
-    /// again first, and a note that changed is handed back as a conflict with the draft
-    /// kept for the user to reload or save as a new note.
-    public func save(_ draft: NotesNoteDraft) async throws -> NotesSaveOutcome {
-        guard state.isConnected else { throw NotesClientError.notConnected }
-        let generation = connectionGeneration
-        guard let noteID = draft.noteID else {
-            return .saved(try await createNote(draft))
-        }
-        let record = notes[noteID]
-        let folderID = draft.folderID ?? record?.folderID
-        let location = NotesNoteLocation(id: noteID, folderID: folderID)
-        if record?.summary.isProtected == true {
-            throw NotesClientError.noteNotEditable(noteID)
-        }
-
-        let current = try await runner.noteSummary(for: location)
-        try requireCurrentConnection(generation)
-        guard !current.isProtected else { throw NotesClientError.noteNotEditable(noteID) }
-        if Self.changedExternally(draft: draft, current: current, tolerance: conflictTolerance) {
-            store(summary: current, content: nil, folder: folderID)
-            _ = try? await loadContent(for: location)
-            try requireCurrentConnection(generation)
-            return .conflict(current: metadata(for: noteID), draft: draft)
-        }
-
-        guard let content = try await loadContent(for: location),
-              NotesTextCompatibility.check(bodyHTML: content.bodyHTML, plainText: content.plainText).isTextOnly
-        else {
-            throw NotesClientError.noteNotEditable(noteID)
-        }
-
-        try requireCurrentConnection(generation)
-        let body = NotesNoteText.compose(title: draft.title, body: draft.body)
-        try await runner.setBody(body, for: location)
-        try requireCurrentConnection(generation)
-        let updated = try await runner.noteSummary(for: location)
-        try requireCurrentConnection(generation)
-        let saved = store(
-            summary: updated,
-            content: NotesNoteContent(id: noteID, plainText: body, bodyHTML: ""),
-            folder: folderID,
-            contentIsCurrent: false
-        )
-        return .saved(metadata(for: saved))
     }
 
     public func openInNotes(id: NotesNoteID) async throws {
@@ -467,19 +378,6 @@ public actor NotesAutomationClient: NotesClient {
     }
 
     /// Reads a note's text into the index, returning it.
-    private func loadContent(for location: NotesNoteLocation) async throws -> NotesNoteContent? {
-        let generation = connectionGeneration
-        let contents = try await runner.noteContents(for: [location])
-        try requireCurrentConnection(generation)
-        guard let content = contents.first(where: { $0.id == location.id }) else { return nil }
-        var record = store(content: content)
-        if record.folderID == nil {
-            record.folderID = location.folderID
-            notes[content.id] = record
-        }
-        return content
-    }
-
     // MARK: - Metadata
 
     private func metadata(for id: NotesNoteID) -> NotesNoteMetadata {
@@ -517,18 +415,6 @@ public actor NotesAutomationClient: NotesClient {
     }
 
     // MARK: - Helpers
-
-    /// A note counts as changed when the date differs by more than a second, when it
-    /// cannot be read at all, or when the draft has no date to compare with: Kopi
-    /// would rather ask than overwrite.
-    static func changedExternally(
-        draft: NotesNoteDraft,
-        current: NotesNoteSummary,
-        tolerance: TimeInterval
-    ) -> Bool {
-        guard let base = draft.baseModificationDate, let now = current.modificationDate else { return true }
-        return abs(now.timeIntervalSince(base)) >= tolerance
-    }
 
     static func batches<T>(of values: [T], size: Int) -> [[T]] {
         guard !values.isEmpty else { return [] }

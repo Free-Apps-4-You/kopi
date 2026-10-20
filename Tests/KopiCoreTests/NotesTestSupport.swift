@@ -111,8 +111,6 @@ actor FakeNotesRunner: NotesAutomationRunning {
         case summaries(NotesFolderID)
         case contents([NotesNoteID])
         case summary(NotesNoteID)
-        case create(NotesFolderID, String)
-        case setBody(NotesNoteID, String)
         case open(NotesNoteID)
         case reset
     }
@@ -125,7 +123,6 @@ actor FakeNotesRunner: NotesAutomationRunning {
     private var unreadable: Set<NotesNoteID> = []
     private var contentReadDelays: [NotesNoteID: Duration] = [:]
     private var failure: NotesClientError?
-    private var nextIdentifier = 100
 
     init(
         accounts: [NotesAccount] = [NotesFixtures.account],
@@ -202,7 +199,7 @@ actor FakeNotesRunner: NotesAutomationRunning {
     func callCount(_ name: String) -> Int {
         calls.filter { call in
             switch (call, name) {
-            case (.setBody, "setBody"), (.create, "create"), (.open, "open"), (.contents, "contents"),
+            case (.open, "open"), (.contents, "contents"),
                  (.summaries, "summaries"), (.summary, "summary"), (.reset, "reset"):
                 true
             default:
@@ -252,42 +249,6 @@ actor FakeNotesRunner: NotesAutomationRunning {
             throw NotesClientError.noteNotFound(note.id)
         }
         return summary
-    }
-
-    func createNote(in folderID: NotesFolderID, body: String) async throws -> NotesNoteSummary {
-        calls.append(.create(folderID, body))
-        try fail()
-        nextIdentifier += 1
-        let summary = NotesNoteSummary(
-            id: NotesNoteID(rawValue: "x-coredata://ACCOUNT/ICNote/p\(nextIdentifier)"),
-            folderID: folderID,
-            folderName: folderID == NotesFixtures.otherFolderID ? "Work" : "Notes",
-            title: NotesNoteText.excerpt(fromPlainText: body, limit: 60),
-            modificationDate: NotesFixtures.baseDate.addingTimeInterval(600)
-        )
-        summaries[folderID, default: []].insert(summary, at: 0)
-        contents[summary.id] = NotesNoteContent(id: summary.id, plainText: body, bodyHTML: "<div>\(body)</div>")
-        return summary
-    }
-
-    func setBody(_ body: String, for note: NotesNoteLocation) async throws {
-        calls.append(.setBody(note.id, body))
-        try fail()
-        contents[note.id] = NotesNoteContent(id: note.id, plainText: body, bodyHTML: "<div>\(body)</div>")
-        for (folderID, list) in summaries where list.contains(where: { $0.id == note.id }) {
-            summaries[folderID] = list.map { summary in
-                guard summary.id == note.id else { return summary }
-                return NotesNoteSummary(
-                    id: summary.id,
-                    folderID: summary.folderID,
-                    folderName: summary.folderName,
-                    title: NotesNoteText.excerpt(fromPlainText: body, limit: 60),
-                    modificationDate: (summary.modificationDate ?? NotesFixtures.baseDate).addingTimeInterval(120),
-                    isProtected: summary.isProtected,
-                    isShared: summary.isShared
-                )
-            }
-        }
     }
 
     func openNote(_ note: NotesNoteLocation) async throws {
@@ -434,8 +395,14 @@ final class FakeNotesScriptingFolder: NotesScriptingFolder, @unchecked Sendable 
     var idValue: String
     var nameValue: String
     var notesResult: [FakeNotesScriptingNote] = []
+    var foldersResult: [FakeNotesScriptingFolder] = []
+    var folderListingError: NSError?
+    func folders() throws -> [any NotesScriptingFolder] {
+        if let folderListingError { throw folderListingError }
+        try fail()
+        return foldersResult
+    }
     var failure: NSError?
-    private(set) var createdNoteBodies: [String] = []
 
     init(id: String = NotesFixtures.folderID.rawValue, name: String = "Notes") {
         self.idValue = id
@@ -462,21 +429,6 @@ final class FakeNotesScriptingFolder: NotesScriptingFolder, @unchecked Sendable 
         return notesResult
     }
 
-    func createNote(body: String) throws -> any NotesScriptingNote {
-        try fail()
-        createdNoteBodies.append(body)
-        let note = FakeNotesScriptingNote(
-            id: "x-coredata://ACCOUNT/ICNote/created-\(createdNoteBodies.count)",
-            title: "Created note",
-            plainText: body,
-            bodyHTML: "<div>\(body)</div>",
-            date: NotesFixtures.baseDate
-        )
-        note.containerResult = self
-        notesResult.insert(note, at: 0)
-        return note
-    }
-
     private func fail() throws {
         if let failure { throw failure }
     }
@@ -484,7 +436,6 @@ final class FakeNotesScriptingFolder: NotesScriptingFolder, @unchecked Sendable 
 
 final class FakeNotesScriptingNote: NotesScriptingNote, @unchecked Sendable {
     enum Call: Equatable, Sendable {
-        case setBody(String)
         case show
     }
 
@@ -557,13 +508,6 @@ final class FakeNotesScriptingNote: NotesScriptingNote, @unchecked Sendable {
     func containerFolder() throws -> (any NotesScriptingFolder)? {
         try fail()
         return containerResult
-    }
-
-    func setBody(_ body: String) throws {
-        try fail()
-        calls.append(.setBody(body))
-        bodyHTMLValue = body
-        plainTextValue = body
     }
 
     func show() throws {

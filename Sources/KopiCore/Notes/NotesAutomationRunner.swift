@@ -58,7 +58,7 @@ public struct NotesNoteLocation: Sendable, Hashable {
 
 /// The work Kopi does against Apple Notes, in Notes' own terms.
 ///
-/// Everything above this protocol — connection state, indexing, save policy — belongs
+/// Everything above this protocol — connection state and read-only indexing — belongs
 /// to ``NotesAutomationClient``; everything below it is the ScriptingBridge transport.
 /// A fake runner stands in for Notes in tests, which is the only way to exercise the
 /// automation logic without talking to the real application.
@@ -77,12 +77,6 @@ public protocol NotesAutomationRunning: Sendable {
 
     /// Fresh metadata of one note, including its modification date.
     func noteSummary(for note: NotesNoteLocation) async throws -> NotesNoteSummary
-
-    /// Creates a note in a folder and returns its metadata.
-    func createNote(in folderID: NotesFolderID, body: String) async throws -> NotesNoteSummary
-
-    /// Replaces a note's text.
-    func setBody(_ body: String, for note: NotesNoteLocation) async throws
 
     /// Brings a note up in Apple Notes: its URL when Notes accepts one, otherwise the
     /// note itself, with Notes brought forward.

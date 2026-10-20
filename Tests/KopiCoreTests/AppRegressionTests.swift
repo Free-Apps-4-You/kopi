@@ -417,12 +417,10 @@ struct AppRegressionTests {
         let fixture = try await AppFixture()
         fixture.panel.setSection(.notes)
         fixture.panel.addItem()
-        #expect(fixture.notes.composer == nil)
         #expect(fixture.panel.newItemDraft == nil)
         await fixture.notes.connect()
         #expect(fixture.notes.state.isConnected)
         fixture.panel.addItem()
-        #expect(fixture.notes.composer == nil)
         #expect(fixture.panel.newItemDraft == nil)
         #expect(NotesTabState.empty.isConnected)
         #expect(!NotesTabState.disconnected.isConnected)
@@ -482,26 +480,6 @@ struct AppRegressionTests {
         await fixture.notes.preparePreview(note)
         fixture.panel.setSection(.images)
         #expect(fixture.notes.preview == nil)
-    }
-
-    @Test("Notes drafts ask before tab navigation and tooltips use the requested 100 ms delay")
-    func notesDraftAndTooltipPolicy() async throws {
-        let fixture = try await AppFixture()
-        fixture.panel.setSection(.notes)
-        await fixture.notes.connect()
-        let editable = try #require(fixture.notes.notes.first { $0.id == NotesFixtures.noteID(1) })
-        await fixture.notes.beginEdit(editable)
-        fixture.notes.updateComposer { $0.body = "Do not lose this" }
-        fixture.panel.setSection(.all)
-        #expect(fixture.panel.showsSavePrompt)
-        #expect(fixture.panel.section == .notes)
-        #expect(fixture.notes.composer?.session.body == "Do not lose this")
-        fixture.panel.discardAndContinue()
-        #expect(fixture.notes.composer == nil)
-        #expect(fixture.panel.section == .all)
-        #expect(KopiTooltipPresenter.delay == .milliseconds(100))
-        #expect(PanelSection.passwords.showsClipboardCards == false)
-        #expect(PanelSelection(section: .passwords).query() == nil)
     }
 
     @Test("Drag payload resolves while the main thread waits, preventing AppKit's synchronous drag deadlock")
@@ -619,7 +597,7 @@ struct AppRegressionTests {
         #expect(await runner.callCount("contents") == reads + 1)
     }
 
-    @Test("Notes sync pauses while hidden or drafting and resumes on return")
+    @Test("Notes sync pauses while hidden and resumes on return")
     func notesSyncVisibilityAndDraft() async throws {
         let runner = FakeNotesRunner.sample()
         let fixture = try await AppFixture(runner: runner)
@@ -629,14 +607,6 @@ struct AppRegressionTests {
         #expect(await runner.callCount("summaries") == calls)
         fixture.notes.setVisible(true)
         defer { fixture.notes.setVisible(false) }
-        let editable = try #require(fixture.notes.notes.first { $0.id == NotesFixtures.noteID(1) })
-        await fixture.notes.beginEdit(editable)
-        fixture.notes.updateComposer { $0.body = "Keep my draft" }
-        await fixture.notes.synchronizeIfNeeded()
-        #expect(await runner.callCount("summaries") == calls)
-        #expect(fixture.notes.composer?.session.body == "Keep my draft")
-        fixture.notes.cancelComposer()
-        fixture.panel.discardAndContinue()
         await fixture.notes.synchronizeIfNeeded()
         #expect(await runner.callCount("summaries") > calls)
         fixture.notes.setVisible(false)
@@ -833,6 +803,113 @@ struct AppRegressionTests {
             try await Task.sleep(for: .milliseconds(10))
         }
         #expect(fixture.notes.filteredNotes.map(\.id) == [NotesFixtures.noteID(1)])
+    }
+    @Test("Notes discovers a new local account, nested folders and filters all account sources")
+    func notesReadsAllAccountsAndFiltersSources() async throws {
+        let fixture = try await AppFixture()
+        let application = FakeNotesScriptingApplication.sample()
+        let bridge = ScriptingBridgeNotesRunner { _ in application }
+        let permission = FixedPermissionChecker(.authorized)
+        let model = NotesTabViewModel(client: NotesAutomationClient(runner: bridge, permission: permission),
+                                      service: fixture.capture.service, settings: fixture.settings)
+        #expect(permission.requestCount == 0)
+        await model.connect()
+        #expect(model.filteredNotes.count == 3)
+        let local = FakeNotesScriptingAccount(id: "LocalAccount", name: "Sur mon Mac")
+        let parent = FakeNotesScriptingFolder(id: "local-folder", name: "Local")
+        let nested = FakeNotesScriptingFolder(id: "local-child", name: "Nested")
+        nested.folderListingError = NSError(domain: NSOSStatusErrorDomain, code: Int(AppleEventStatus.noSuchObject))
+        let note = FakeNotesScriptingNote(id: NotesFixtures.noteID(101).rawValue, title: "Local note",
+                                          plainText: "only local needle", bodyHTML: "<div>only local needle</div>", date: NotesFixtures.baseDate)
+        nested.notesResult = [note]
+        parent.foldersResult = [nested]
+        local.foldersResult = [parent, nested] // Some scripting lists repeat descendants.
+        local.defaultFolderResult = parent
+        application.accountsResult.append(local)
+        await model.refresh(silently: true)
+        #expect(model.accounts.count == 2)
+        #expect(model.accounts.last?.location == .onMyMac)
+        #expect(model.folders.filter { $0.accountID.rawValue == "LocalAccount" }.count == 2)
+        #expect(model.filteredNotes.count == 4)
+
+        model.sourceFilter = .onMyMac
+        #expect(model.filteredNotes.map(\.id) == [NotesFixtures.noteID(101)])
+        model.sourceFilter = .iCloud
+        #expect(model.filteredNotes.count == 3)
+        model.searchText = "local needle"
+        model.sourceFilter = .all
+        model.sourceFilter = .onMyMac
+        for _ in 0..<200 {
+            if model.filteredNotes.map(\.id) == [NotesFixtures.noteID(101)] { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(model.filteredNotes.map(\.id) == [NotesFixtures.noteID(101)])
+        model.sourceFilter = .iCloud
+        for _ in 0..<200 {
+            if !model.isBusy && model.filteredNotes.isEmpty { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(model.filteredNotes.isEmpty)
+        #expect(NotesSourceFilter.all.includes(NotesAccount(id: .init(rawValue: "gmail"), name: "Gmail")))
+        #expect(!NotesSourceFilter.iCloud.includes(NotesAccount(id: .init(rawValue: "gmail"), name: "Gmail")))
+        #expect(permission.requestCount == 1)
+    }
+
+    @Test("Read-only Notes previews do not require saving before navigation")
+    func notesNavigationIsReadOnly() async throws {
+        let fixture = try await AppFixture()
+        await fixture.notes.connect()
+        fixture.panel.setSection(.notes)
+        let note = try #require(fixture.notes.notes.first)
+        await fixture.notes.preparePreview(note)
+        #expect(await fixture.notes.copyText(of: note))
+        fixture.panel.goHome()
+        #expect(!fixture.panel.showsSavePrompt)
+        #expect(fixture.notes.preview == nil)
+        #expect(fixture.panel.section == .all)
+    }
+
+    @Test("Menu tracking dismisses pending tooltips and prevents tooltips over actions")
+    func actionMenusDismissTooltips() async throws {
+        let presenter = KopiTooltipPresenter.shared
+        let menu = NSMenu(title: "Note actions")
+        defer {
+            NotificationCenter.default.post(name: NSMenu.didEndTrackingNotification, object: menu)
+            presenter.hideAll()
+        }
+        presenter.request("Note actions", owner: UUID())
+        #expect(presenter.hasPendingRequest)
+        NotificationCenter.default.post(name: NSMenu.didBeginTrackingNotification, object: menu)
+        #expect(presenter.isMenuTracking)
+        #expect(!presenter.hasPendingRequest)
+        presenter.request("Note actions", owner: UUID())
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(!presenter.hasPendingRequest)
+        #expect(!presenter.isVisible)
+        NotificationCenter.default.post(name: NSMenu.didEndTrackingNotification, object: menu)
+        #expect(!presenter.isMenuTracking)
+        presenter.request("Note actions", owner: UUID())
+        #expect(presenter.hasPendingRequest)
+        presenter.hideAll()
+        try await Task.sleep(for: .milliseconds(150))
+        #expect(!presenter.isVisible)
+        #expect(KopiTooltipPresenter.delay == .milliseconds(100))
+    }
+
+    @Test("Top-center hover works on notchless displays in global coordinates")
+    func topCenterHoverOnAnyDisplay() {
+        for frame in [CGRect(x: 0, y: 0, width: 1440, height: 900), CGRect(x: -1920, y: 400, width: 1920, height: 1080)] {
+            let display = PanelDisplayGeometry(frame: frame, visibleFrame: frame)
+            let target = PanelGeometry.triggerRect(for: display)
+            #expect(target.width == 180)
+            #expect(target.maxY == frame.maxY)
+            #expect(target.midX == frame.midX)
+            var hover = NotchHoverState()
+            let point = CGPoint(x: frame.midX, y: frame.maxY)
+            #expect(hover.update(point: point, targets: [target], now: 1, delay: 0.3) == 1.3)
+            #expect(hover.update(point: CGPoint(x: frame.midX, y: frame.maxY - 11), targets: [target], now: 2, delay: 0.3) == nil)
+            #expect(hover.update(point: point, targets: [target], now: 3, delay: 0.3) == 3.3)
+        }
     }
 }
 

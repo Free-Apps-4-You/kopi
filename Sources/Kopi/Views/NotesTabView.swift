@@ -1,7 +1,7 @@
 import SwiftUI
 import KopiCore
 
-/// The Notes tab: connection, cards, previews and the composer, all against the
+/// The Notes tab: read-only connection, cards and previews, all against the
 /// ``NotesClient`` protocol.
 struct NotesTabView: View {
     @Environment(\.kopiCompactCards) private var compactCards
@@ -50,7 +50,7 @@ struct NotesTabView: View {
         StatePanel(
             symbol: "note.text",
             title: "Connect Apple Notes",
-            message: "Kopi reads the notes you choose and keeps them searchable here. Notes stay in Apple Notes; Kopi never changes them without asking.",
+            message: "Kopi reads the notes you choose and keeps them searchable here. Notes stay in Apple Notes; Kopi cannot create, edit, or delete them. macOS asks for Automation access to read them.",
             actionTitle: "Connect Apple Notes"
         ) {
             Task { await model.connect() }
@@ -118,7 +118,7 @@ struct NotesTabView: View {
                     symbol: "magnifyingglass",
                     title: model.searchText.isEmpty ? "No notes yet" : "No matching notes",
                     message: model.searchText.isEmpty
-                        ? "New notes in the included folders will appear automatically."
+                        ? model.emptySourceMessage
                         : "No note matches “\(model.searchText)”."
                 )
             } else {
@@ -141,12 +141,14 @@ struct NotesTabView: View {
 
     private var toolbar: some View {
         HStack(spacing: 8) {
-            if !model.folders.isEmpty {
-                Label("Included: \(includedNames)", systemImage: "folder").kopiTooltip("Included folders")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+            Picker("Notes source", selection: $model.sourceFilter) {
+                ForEach(NotesSourceFilter.allCases) { source in
+                    Text(source.title).tag(source)
+                }
             }
+            .pickerStyle(.segmented)
+            .frame(width: 260)
+            .accessibilityLabel("Filter notes by account location")
             Spacer(minLength: 8)
             if let status = model.statusMessage {
                 Text(status)
@@ -154,6 +156,9 @@ struct NotesTabView: View {
                     .foregroundStyle(KopiTheme.accent)
                     .lineLimit(1)
             }
+            Label("Read only", systemImage: "eye")
+                .font(.system(size: 9.5, weight: .medium))
+                .foregroundStyle(.secondary)
             Label("Auto-sync", systemImage: "arrow.triangle.2.circlepath")
                 .font(.system(size: 9.5, weight: .medium))
                 .foregroundStyle(KopiTheme.accent)
@@ -165,12 +170,6 @@ struct NotesTabView: View {
         .padding(.horizontal, KopiTheme.contentPadding)
         .padding(.top, 6)
         .padding(.bottom, 6)
-    }
-
-    private var includedNames: String {
-        let names = model.folders.filter { model.isIncluded($0) }.map(\.name)
-        guard !names.isEmpty else { return model.folders.count == 1 ? model.folders[0].name : "All folders" }
-        return names.count <= 2 ? names.joined(separator: ", ") : "\(names.count) folders"
     }
 
     private static func openAutomationSettings() {
@@ -320,9 +319,6 @@ struct NoteCardView: View {
         Button("Paste", systemImage: "doc.on.clipboard") { commands.pasteNote(note) }
         Button("Maximise", systemImage: "arrow.up.left.and.arrow.down.right") { Task { await model.preparePreview(note) } }
         Button("Copy Text", systemImage: "doc.on.doc") { Task { await model.copyText(of: note) } }
-        if note.supportsInlineEditing {
-            Button("Edit", systemImage: "pencil") { Task { await model.beginEdit(note) } }
-        }
         Button("Open in Apple Notes", systemImage: "arrow.up.forward.app") { Task { await model.openInNotes(note) } }
     }
 
@@ -362,10 +358,6 @@ struct NotesPreviewView: View {
                                     .kopiTooltip("Paste into the previous app")
                                 Button { Task { await model.copyText(of: preview.metadata) } } label: { Label("Copy Text", systemImage: "doc.on.doc") }
                                     .kopiTooltip("Copy Text")
-                                if preview.metadata.supportsInlineEditing {
-                                    Button { Task { await model.beginEdit(preview.metadata) } } label: { Label("Edit", systemImage: "pencil") }
-                                        .kopiTooltip("Edit")
-                                }
                                 Button { Task { await model.openInNotes(preview.metadata) } } label: { Label("Open in Apple Notes", systemImage: "arrow.up.forward.app") }
                                     .kopiTooltip("Open in Apple Notes")
                                 Spacer(minLength: 4)
@@ -383,111 +375,4 @@ struct NotesPreviewView: View {
         }
     }
 
-}
-
-/// Creates a note, or edits a simple text one, with an explicit Save and Cancel.
-struct NotesComposerView: View {
-    @ObservedObject var model: NotesTabViewModel
-    @Environment(\.colorSchemeContrast) private var contrast
-
-    var body: some View {
-        if let composer = model.composer {
-            ZStack(alignment: .top) {
-                OverlayBackdrop { model.cancelComposer() }
-
-                OverlaySurface {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(composer.session.isNew ? "New Note" : "Edit Note")
-                            .font(.system(size: 13, weight: .semibold))
-                        if let conflict = composer.session.conflict {
-                            conflictBanner(conflict)
-                        }
-                        TextField("Title", text: Binding(
-                            get: { composer.session.title },
-                            set: { value in model.updateComposer { $0.title = value } }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.large)
-                        .font(.system(size: 12))
-                        .tint(KopiTheme.accent)
-                        TextEditor(text: Binding(
-                            get: { composer.session.body },
-                            set: { value in model.updateComposer { $0.body = value } }
-                        ))
-                        .font(.system(size: 12))
-                        .lineSpacing(2)
-                        .padding(8)
-                        .frame(minHeight: 170)
-                        .scrollContentBackground(.hidden)
-                        .background(
-                            RoundedRectangle(cornerRadius: KopiTheme.controlCornerRadius, style: .continuous)
-                                .fill(KopiTheme.insetSurface)
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: KopiTheme.controlCornerRadius, style: .continuous)
-                                        .strokeBorder(KopiTheme.border(contrast: contrast), lineWidth: 1)
-                                }
-                        )
-                        .tint(KopiTheme.accent)
-                        if !model.folders.isEmpty {
-                            Picker("Folder", selection: Binding(
-                                get: { composer.session.folderID ?? model.folders.first?.id ?? NotesFolderID(rawValue: "") },
-                                set: { value in model.updateComposer { $0.folderID = value } }
-                            )) {
-                                ForEach(model.folders) { folder in
-                                    Text(folder.name).tag(folder.id)
-                                }
-                            }
-                            .controlSize(.small)
-                        }
-                        if let error = composer.session.errorMessage {
-                            Label(error, systemImage: "exclamationmark.triangle").kopiTooltip(error)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.orange)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Divider().overlay(KopiTheme.border(contrast: contrast))
-                        HStack(spacing: 8) {
-                            if composer.isSaving {
-                                ProgressView().controlSize(.small)
-                                Text("Saving to Apple Notes…")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 8)
-                            Button("Cancel") { model.cancelComposer() }
-                                .controlSize(.regular)
-                            Button("Save") { Task { await model.saveComposer() } }
-                                .buttonStyle(.borderedProminent)
-                                .tint(KopiTheme.accent)
-                                .disabled(composer.isSaving)
-                                .keyboardShortcut("s", modifiers: .command)
-                        }
-                    }
-                }
-                .frame(maxWidth: 600, maxHeight: 480, alignment: .topLeading)
-                .padding(.horizontal, 50)
-                .padding(.vertical, 26)
-            }
-        }
-    }
-
-    private func conflictBanner(_ conflict: NotesNoteMetadata) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Label("This note changed in Apple Notes", systemImage: "arrow.triangle.2.circlepath").kopiTooltip("This note changed in Apple Notes")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.orange)
-            Text("Last changed \(CardTimestamp.detailed(conflict.modificationDate)). Kopi keeps your draft.")
-                .font(.system(size: 10))
-                .foregroundStyle(.secondary)
-            HStack(spacing: 8) {
-                Button("Reload") { Task { await model.reloadConflict() } }
-                    .controlSize(.small)
-            }
-        }
-        .padding(KopiTheme.cardPadding)
-        .background(
-            RoundedRectangle(cornerRadius: KopiTheme.controlCornerRadius, style: .continuous)
-                .fill(Color.orange.opacity(0.12))
-        )
-    }
 }

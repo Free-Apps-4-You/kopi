@@ -148,16 +148,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 	return result__;
 }
 
-- (void) print:(id)x withProperties:(NSDictionary *)withProperties printDialog:(BOOL)printDialog
-{
-	[self sendEvent:'aevt' id:'pdoc' parameters:'----', x, 'prdt', withProperties, 'pdlg', [NSNumber numberWithBool:printDialog], 0];
-}
-
-- (void) quitSaving:(NotesSaveOptions)saving
-{
-	[self sendEvent:'aevt' id:'quit' parameters:'savo', [NSAppleEventDescriptor descriptorWithEnumCode:saving], 0];
-}
-
 - (BOOL) exists:(id)x
 {
 	id result__ = [self sendEvent:'core' id:'doex' parameters:'----', x, 0];
@@ -192,36 +182,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 
 
 
-- (void) closeSaving:(NotesSaveOptions)saving savingIn:(NSURL *)savingIn
-{
-	[self sendEvent:'core' id:'clos' parameters:'savo', [NSAppleEventDescriptor descriptorWithEnumCode:saving], 'kfil', savingIn, 0];
-}
-
-- (void) saveIn:(NSURL *)in_ as:(NotesSaveableFileFormat)as
-{
-	[self sendEvent:'core' id:'save' parameters:'kfil', in_, 'fltp', [NSAppleEventDescriptor descriptorWithEnumCode:as], 0];
-}
-
-- (void) printWithProperties:(NSDictionary *)withProperties printDialog:(BOOL)printDialog
-{
-	[self sendEvent:'aevt' id:'pdoc' parameters:'prdt', withProperties, 'pdlg', [NSNumber numberWithBool:printDialog], 0];
-}
-
-- (void) delete
-{
-	[self sendEvent:'core' id:'delo' parameters:0];
-}
-
-- (void) duplicateTo:(SBObject *)to withProperties:(NSDictionary *)withProperties
-{
-	[self sendEvent:'core' id:'clon' parameters:'insh', to, 'prdt', withProperties, 0];
-}
-
-- (void) moveTo:(SBObject *)to
-{
-	[self sendEvent:'core' id:'move' parameters:'insh', to, 0];
-}
-
 @end
 
 
@@ -244,22 +204,10 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 	return [v integerValue];
 }
 
-- (void) setIndex: (NSInteger) index
-{
-	id v = [NSNumber numberWithInteger:index];
-	[[self propertyWithCode:'pidx'] setTo:v];
-}
-
 - (NSRect) bounds
 {
 	id v = [[self propertyWithCode:'pbnd'] get];
 	return [v rectValue];
-}
-
-- (void) setBounds: (NSRect) bounds
-{
-	id v = [NSValue valueWithRect:bounds];
-	[[self propertyWithCode:'pbnd'] setTo:v];
 }
 
 - (BOOL) closeable
@@ -280,12 +228,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 	return [v boolValue];
 }
 
-- (void) setMiniaturized: (BOOL) miniaturized
-{
-	id v = [NSNumber numberWithBool:miniaturized];
-	[[self propertyWithCode:'pmnd'] setTo:v];
-}
-
 - (BOOL) resizable
 {
 	id v = [[self propertyWithCode:'prsz'] get];
@@ -296,12 +238,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 {
 	id v = [[self propertyWithCode:'pvis'] get];
 	return [v boolValue];
-}
-
-- (void) setVisible: (BOOL) visible
-{
-	id v = [NSNumber numberWithBool:visible];
-	[[self propertyWithCode:'pvis'] setTo:v];
 }
 
 - (BOOL) zoomable
@@ -316,48 +252,12 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 	return [v boolValue];
 }
 
-- (void) setZoomed: (BOOL) zoomed
-{
-	id v = [NSNumber numberWithBool:zoomed];
-	[[self propertyWithCode:'pzum'] setTo:v];
-}
-
 - (NotesDocument *) document
 {
 	return (NotesDocument *) [self propertyWithClass:[NotesDocument class] code:'docu'];
 }
 
 
-
-- (void) closeSaving:(NotesSaveOptions)saving savingIn:(NSURL *)savingIn
-{
-	[self sendEvent:'core' id:'clos' parameters:'savo', [NSAppleEventDescriptor descriptorWithEnumCode:saving], 'kfil', savingIn, 0];
-}
-
-- (void) saveIn:(NSURL *)in_ as:(NotesSaveableFileFormat)as
-{
-	[self sendEvent:'core' id:'save' parameters:'kfil', in_, 'fltp', [NSAppleEventDescriptor descriptorWithEnumCode:as], 0];
-}
-
-- (void) printWithProperties:(NSDictionary *)withProperties printDialog:(BOOL)printDialog
-{
-	[self sendEvent:'aevt' id:'pdoc' parameters:'prdt', withProperties, 'pdlg', [NSNumber numberWithBool:printDialog], 0];
-}
-
-- (void) delete
-{
-	[self sendEvent:'core' id:'delo' parameters:0];
-}
-
-- (void) duplicateTo:(SBObject *)to withProperties:(NSDictionary *)withProperties
-{
-	[self sendEvent:'core' id:'clon' parameters:'insh', to, 'prdt', withProperties, 0];
-}
-
-- (void) moveTo:(SBObject *)to
-{
-	[self sendEvent:'core' id:'move' parameters:'insh', to, 0];
-}
 
 @end
 
@@ -397,19 +297,9 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 	return (NotesAccount *) [self propertyWithClass:[NotesAccount class] code:'dfac'];
 }
 
-- (void) setDefaultAccount: (NotesAccount *) defaultAccount
-{
-	[[self propertyWithClass:[NotesAccount class] code:'dfac'] setTo:defaultAccount];
-}
-
 - (NSArray<NotesNote *> *) selection
 {
 	return [[self propertyWithCode:'seln'] get];
-}
-
-- (void) setSelection: (NSArray<NotesNote *> *) selection
-{
-	[[self propertyWithCode:'seln'] setTo:selection];
 }
 
 @end
@@ -433,19 +323,9 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 	return (NotesFolder *) [self propertyWithClass:[NotesFolder class] code:'dfol'];
 }
 
-- (void) setDefaultFolder: (NotesFolder *) defaultFolder
-{
-	[[self propertyWithClass:[NotesFolder class] code:'dfol'] setTo:defaultFolder];
-}
-
 - (NSString *) name
 {
 	return [[self propertyWithCode:'pnam'] get];
-}
-
-- (void) setName: (NSString *) name
-{
-	[[self propertyWithCode:'pnam'] setTo:name];
 }
 
 - (BOOL) upgraded
@@ -467,36 +347,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 }
 
 
-- (void) closeSaving:(NotesSaveOptions)saving savingIn:(NSURL *)savingIn
-{
-	[self sendEvent:'core' id:'clos' parameters:'savo', [NSAppleEventDescriptor descriptorWithEnumCode:saving], 'kfil', savingIn, 0];
-}
-
-- (void) saveIn:(NSURL *)in_ as:(NotesSaveableFileFormat)as
-{
-	[self sendEvent:'core' id:'save' parameters:'kfil', in_, 'fltp', [NSAppleEventDescriptor descriptorWithEnumCode:as], 0];
-}
-
-- (void) printWithProperties:(NSDictionary *)withProperties printDialog:(BOOL)printDialog
-{
-	[self sendEvent:'aevt' id:'pdoc' parameters:'prdt', withProperties, 'pdlg', [NSNumber numberWithBool:printDialog], 0];
-}
-
-- (void) delete
-{
-	[self sendEvent:'core' id:'delo' parameters:0];
-}
-
-- (void) duplicateTo:(SBObject *)to withProperties:(NSDictionary *)withProperties
-{
-	[self sendEvent:'core' id:'clon' parameters:'insh', to, 'prdt', withProperties, 0];
-}
-
-- (void) moveTo:(SBObject *)to
-{
-	[self sendEvent:'core' id:'move' parameters:'insh', to, 0];
-}
-
 @end
 
 
@@ -516,11 +366,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 - (NSString *) name
 {
 	return [[self propertyWithCode:'pnam'] get];
-}
-
-- (void) setName: (NSString *) name
-{
-	[[self propertyWithCode:'pnam'] setTo:name];
 }
 
 - (NSString *) id
@@ -547,36 +392,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 }
 
 
-- (void) closeSaving:(NotesSaveOptions)saving savingIn:(NSURL *)savingIn
-{
-	[self sendEvent:'core' id:'clos' parameters:'savo', [NSAppleEventDescriptor descriptorWithEnumCode:saving], 'kfil', savingIn, 0];
-}
-
-- (void) saveIn:(NSURL *)in_ as:(NotesSaveableFileFormat)as
-{
-	[self sendEvent:'core' id:'save' parameters:'kfil', in_, 'fltp', [NSAppleEventDescriptor descriptorWithEnumCode:as], 0];
-}
-
-- (void) printWithProperties:(NSDictionary *)withProperties printDialog:(BOOL)printDialog
-{
-	[self sendEvent:'aevt' id:'pdoc' parameters:'prdt', withProperties, 'pdlg', [NSNumber numberWithBool:printDialog], 0];
-}
-
-- (void) delete
-{
-	[self sendEvent:'core' id:'delo' parameters:0];
-}
-
-- (void) duplicateTo:(SBObject *)to withProperties:(NSDictionary *)withProperties
-{
-	[self sendEvent:'core' id:'clon' parameters:'insh', to, 'prdt', withProperties, 0];
-}
-
-- (void) moveTo:(SBObject *)to
-{
-	[self sendEvent:'core' id:'move' parameters:'insh', to, 0];
-}
-
 @end
 
 
@@ -593,11 +408,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 	return [[self propertyWithCode:'pnam'] get];
 }
 
-- (void) setName: (NSString *) name
-{
-	[[self propertyWithCode:'pnam'] setTo:name];
-}
-
 - (NSString *) id
 {
 	return [[self propertyWithCode:'ID  '] get];
@@ -611,11 +421,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 - (NSString *) body
 {
 	return [[self propertyWithCode:'body'] get];
-}
-
-- (void) setBody: (NSString *) body
-{
-	[[self propertyWithCode:'body'] setTo:body];
 }
 
 - (NSString *) plaintext
@@ -652,36 +457,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 	return result__;
 }
 
-
-- (void) closeSaving:(NotesSaveOptions)saving savingIn:(NSURL *)savingIn
-{
-	[self sendEvent:'core' id:'clos' parameters:'savo', [NSAppleEventDescriptor descriptorWithEnumCode:saving], 'kfil', savingIn, 0];
-}
-
-- (void) saveIn:(NSURL *)in_ as:(NotesSaveableFileFormat)as
-{
-	[self sendEvent:'core' id:'save' parameters:'kfil', in_, 'fltp', [NSAppleEventDescriptor descriptorWithEnumCode:as], 0];
-}
-
-- (void) printWithProperties:(NSDictionary *)withProperties printDialog:(BOOL)printDialog
-{
-	[self sendEvent:'aevt' id:'pdoc' parameters:'prdt', withProperties, 'pdlg', [NSNumber numberWithBool:printDialog], 0];
-}
-
-- (void) delete
-{
-	[self sendEvent:'core' id:'delo' parameters:0];
-}
-
-- (void) duplicateTo:(SBObject *)to withProperties:(NSDictionary *)withProperties
-{
-	[self sendEvent:'core' id:'clon' parameters:'insh', to, 'prdt', withProperties, 0];
-}
-
-- (void) moveTo:(SBObject *)to
-{
-	[self sendEvent:'core' id:'move' parameters:'insh', to, 0];
-}
 
 @end
 
@@ -736,36 +511,6 @@ static const codeForPropertyName_t codeForPropertyNameData__[] = {
 	return result__;
 }
 
-
-- (void) closeSaving:(NotesSaveOptions)saving savingIn:(NSURL *)savingIn
-{
-	[self sendEvent:'core' id:'clos' parameters:'savo', [NSAppleEventDescriptor descriptorWithEnumCode:saving], 'kfil', savingIn, 0];
-}
-
-- (void) saveIn:(NSURL *)in_ as:(NotesSaveableFileFormat)as
-{
-	[self sendEvent:'core' id:'save' parameters:'kfil', in_, 'fltp', [NSAppleEventDescriptor descriptorWithEnumCode:as], 0];
-}
-
-- (void) printWithProperties:(NSDictionary *)withProperties printDialog:(BOOL)printDialog
-{
-	[self sendEvent:'aevt' id:'pdoc' parameters:'prdt', withProperties, 'pdlg', [NSNumber numberWithBool:printDialog], 0];
-}
-
-- (void) delete
-{
-	[self sendEvent:'core' id:'delo' parameters:0];
-}
-
-- (void) duplicateTo:(SBObject *)to withProperties:(NSDictionary *)withProperties
-{
-	[self sendEvent:'core' id:'clon' parameters:'insh', to, 'prdt', withProperties, 0];
-}
-
-- (void) moveTo:(SBObject *)to
-{
-	[self sendEvent:'core' id:'move' parameters:'insh', to, 0];
-}
 
 @end
 

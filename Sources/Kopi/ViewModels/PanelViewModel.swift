@@ -165,7 +165,6 @@ final class PanelViewModel: ObservableObject {
         self.captureState = captureStatus.state
         self.showsCloseButton = !settings.settings.dismissesOnOutsideClick
         self.usesCompactCards = settings.settings.usesCompactCards
-        notes.onRequestCancel = { [weak self] in self?.requestLeavingEditor {} }
         passwords.onRequestCancel = { [weak self] in self?.requestLeavingEditor {} }
         settingsSubscription = settings.$settings
             .removeDuplicates()
@@ -250,8 +249,8 @@ final class PanelViewModel: ObservableObject {
 
     @Published var showsSavePrompt = false
     private var pendingNavigation: (@MainActor () -> Void)?
-    var isSavingDraft: Bool { newItemDraft?.isSaving == true || newItemDraft?.isLoading == true || editor?.isSaving == true || notes.composer?.isSaving == true || (passwords.draft != nil && passwords.isBusy) }
-    var hasActiveEditor: Bool { newItemDraft != nil || editor != nil || notes.composer != nil || passwords.draft != nil }
+    var isSavingDraft: Bool { newItemDraft?.isSaving == true || newItemDraft?.isLoading == true || editor?.isSaving == true || (passwords.draft != nil && passwords.isBusy) }
+    var hasActiveEditor: Bool { newItemDraft != nil || editor != nil || passwords.draft != nil }
     func requestLeavingEditor(_ action: @escaping @MainActor () -> Void) {
         guard hasActiveEditor else { action(); return }
         guard !isSavingDraft else { showStatus("Finishing your save…"); return }
@@ -272,14 +271,13 @@ final class PanelViewModel: ObservableObject {
     func cancelPendingNavigation() { pendingNavigation = nil; showsSavePrompt = false }
     func discardAndContinue() {
         newItemDraft = nil
-        closeEditor(); notes.discardComposer(); passwords.discardDraft()
+        closeEditor(); passwords.discardDraft()
         let action = pendingNavigation; pendingNavigation = nil; showsSavePrompt = false
         action?()
     }
     func saveAndContinue() async {
         if newItemDraft != nil { await saveNewItem() }
         if editor != nil { await saveEditor() }
-        if notes.composer != nil { await notes.saveComposer() }
         if passwords.draft != nil { await passwords.save() }
         guard !hasActiveEditor else { showsSavePrompt = false; return }
         let action = pendingNavigation; pendingNavigation = nil; showsSavePrompt = false

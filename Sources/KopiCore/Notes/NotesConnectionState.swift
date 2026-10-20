@@ -56,8 +56,6 @@ public enum NotesClientError: Error, Sendable, Equatable {
     case accountNotFound(NotesAccountID)
     case folderNotFound(NotesFolderID)
     case noteNotFound(NotesNoteID)
-    case noteNotEditable(NotesNoteID)
-    case noteChangedExternally(NotesNoteID)
     case commandFailed(String)
 }
 
@@ -66,14 +64,12 @@ extension NotesClientError {
     public var userMessage: String {
         switch self {
         case .notConnected: "Connect Apple Notes to use the Notes tab."
-        case .permissionDenied: "Kopi is not allowed to control Apple Notes. Allow it in System Settings ▸ Privacy & Security ▸ Automation."
+        case .permissionDenied: "Kopi cannot read Apple Notes. Allow Automation access in System Settings ▸ Privacy & Security ▸ Automation. Kopi only reads notes."
         case .timedOut: "Apple Notes did not answer in time."
         case .automationUnavailable(let message): message
         case .accountNotFound: "That Notes account is no longer available."
         case .folderNotFound: "That Notes folder is no longer available."
         case .noteNotFound: "That note no longer exists in Apple Notes."
-        case .noteNotEditable: "That note can only be edited in Apple Notes."
-        case .noteChangedExternally: "The note changed in Apple Notes. Reload it or save your text as a new note."
         case .commandFailed(let message): message
         }
     }
@@ -83,7 +79,7 @@ extension NotesClientError {
         switch self {
         case .permissionDenied: true
         case .notConnected, .timedOut, .automationUnavailable, .accountNotFound, .folderNotFound,
-             .noteNotFound, .noteNotEditable, .noteChangedExternally, .commandFailed:
+             .noteNotFound, .commandFailed:
             false
         }
     }

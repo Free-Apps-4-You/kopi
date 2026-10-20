@@ -63,10 +63,43 @@ public struct NotesAccount: Sendable, Hashable, Identifiable, Codable {
     public let name: String
     public let isDefault: Bool
 
+    public var location: NotesAccountLocation {
+        let identifier = id.rawValue.lowercased()
+        let accountName = name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            .filter { $0.isLetter || $0.isNumber }
+        // Notes uses LocalAccount for local storage, independent of the UI language.
+        if identifier.contains("localaccount") || accountName == "onmymac" { return .onMyMac }
+        if accountName == "icloud" { return .iCloud }
+        return .other
+    }
+
     public init(id: NotesAccountID, name: String, isDefault: Bool = false) {
         self.id = id
         self.name = name
         self.isDefault = isDefault
+    }
+}
+
+public enum NotesAccountLocation: String, Sendable {
+    case onMyMac, iCloud, other
+}
+
+public enum NotesSourceFilter: String, CaseIterable, Identifiable, Sendable {
+    case all, onMyMac, iCloud
+    public var id: Self { self }
+    public var title: String {
+        switch self {
+        case .all: "All"
+        case .onMyMac: "On My Mac"
+        case .iCloud: "iCloud"
+        }
+    }
+    public func includes(_ account: NotesAccount) -> Bool {
+        switch self {
+        case .all: true
+        case .onMyMac: account.location == .onMyMac
+        case .iCloud: account.location == .iCloud
+        }
     }
 }
 
@@ -127,14 +160,9 @@ public struct NotesNoteMetadata: Sendable, Hashable, Identifiable, Codable {
         self.attachmentCount = attachmentCount
     }
 
-    /// Inline editing is allowed only for plain-text, unprotected notes.
-    public var supportsInlineEditing: Bool {
-        !isProtected && !hasRichContent && attachmentCount == 0
-    }
-
-    /// Notes that must be opened in Apple Notes for editing or reading.
+    /// Content best opened in Apple Notes for full fidelity.
     public var requiresAppleNotes: Bool {
-        !supportsInlineEditing || isShared || isProtected
+        isProtected || isShared || hasRichContent || attachmentCount > 0
     }
 }
 
@@ -152,34 +180,6 @@ public struct NotesNote: Sendable, Hashable, Identifiable, Codable {
 
     public var id: NotesNoteID { metadata.id }
 
-    public var supportsInlineEditing: Bool { metadata.supportsInlineEditing }
-}
-
-/// An edit in progress, or a new note to create.
-public struct NotesNoteDraft: Sendable, Hashable, Codable {
-    /// `nil` when the draft will create a note.
-    public let noteID: NotesNoteID?
-    public var title: String
-    public var body: String
-    public var folderID: NotesFolderID?
-    /// Modification date the draft was based on, used to detect external edits.
-    public var baseModificationDate: Date?
-
-    public init(
-        noteID: NotesNoteID? = nil,
-        title: String,
-        body: String,
-        folderID: NotesFolderID? = nil,
-        baseModificationDate: Date? = nil
-    ) {
-        self.noteID = noteID
-        self.title = title
-        self.body = body
-        self.folderID = folderID
-        self.baseModificationDate = baseModificationDate
-    }
-
-    public var isNew: Bool { noteID == nil }
 }
 
 /// Progress of the note-body indexing pass.
@@ -212,22 +212,5 @@ public struct NotesPage: Sendable, Hashable, Codable {
     public init(offset: Int = 0, limit: Int = NotesPage.defaultLimit) {
         self.offset = offset
         self.limit = limit
-    }
-}
-
-/// Result of a save: either committed, or rejected because the note changed
-/// externally and no automatic overwrite is allowed.
-public enum NotesSaveOutcome: Sendable, Hashable, Codable {
-    case saved(NotesNoteMetadata)
-    case conflict(current: NotesNoteMetadata, draft: NotesNoteDraft)
-
-    public var isConflict: Bool {
-        if case .conflict = self { return true }
-        return false
-    }
-
-    public var savedNote: NotesNoteMetadata? {
-        if case .saved(let metadata) = self { return metadata }
-        return nil
     }
 }

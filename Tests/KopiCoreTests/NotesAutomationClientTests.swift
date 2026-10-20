@@ -143,7 +143,7 @@ struct NotesAutomationClientTests {
         #expect(await client.connectionState == .permissionDenied)
     }
 
-    @Test("The default folder is read first, and a chosen folder replaces it")
+    @Test("All folders are read initially, and an explicit folder selection restricts them")
     func folderSelection() async throws {
         let runner = FakeNotesRunner(
             summaries: [
@@ -173,7 +173,7 @@ struct NotesAutomationClientTests {
             if case .summaries = call { return true }
             return false
         }
-        #expect(indexed.count == 2)
+        #expect(indexed.count == 3)
     }
 
     @Test("Bodies are indexed in bounded batches while progress is published")
@@ -281,158 +281,6 @@ struct NotesAutomationClientTests {
         #expect(page.contains { $0.excerpt.contains("harbour") })
     }
 
-    @Test("Saving re-reads the modification date and reports a conflict instead of writing")
-    func saveConflictKeepsDraft() async throws {
-        let runner = FakeNotesRunner.sample()
-        let client = try await connectedClient(runner: runner)
-        let note = try #require(try await client.notes(withIDs: [NotesFixtures.noteID(1)]).first)
-
-        let draft = NotesNoteDraft(
-            noteID: note.id,
-            title: "Note 1",
-            body: "Text the user typed",
-            folderID: note.metadata.folderID,
-            baseModificationDate: note.metadata.modificationDate
-        )
-
-        await runner.setSummary(
-            NotesFixtures.summary(1, title: "Changed elsewhere", date: note.metadata.modificationDate.addingTimeInterval(300))
-        )
-        let outcome = try await client.save(draft)
-
-        #expect(outcome.isConflict)
-        #expect(outcome.savedNote == nil)
-        #expect(await runner.callCount("setBody") == 0)
-
-        guard case .conflict(let current, let keptDraft) = outcome else {
-            Issue.record("expected a conflict")
-            return
-        }
-        #expect(current.title == "Changed elsewhere")
-        #expect(keptDraft.body == "Text the user typed")
-    }
-
-    @Test("A draft reloaded from Apple Notes carries the external text")
-    func reloadAfterConflict() async throws {
-        let runner = FakeNotesRunner.sample()
-        let client = try await connectedClient(runner: runner)
-        let note = try #require(try await client.notes(withIDs: [NotesFixtures.noteID(1)]).first)
-        var session = NotesNoteDraftSession(editing: note)
-
-        await runner.setContents([NotesFixtures.noteID(1): NotesFixtures.content(1, text: "Note 1\n\nChanged in Notes")])
-        await runner.setSummary(NotesFixtures.summary(1, date: NotesFixtures.baseDate.addingTimeInterval(600)))
-
-        let outcome = try await client.save(session.draft)
-        #expect(session.apply(outcome) == nil)
-        #expect(session.hasConflict)
-
-        let reloaded = try #require(try await client.notes(withIDs: [NotesFixtures.noteID(1)]).first)
-        session.reload(with: reloaded)
-
-        #expect(session.hasConflict == false)
-        #expect(session.body == "Changed in Notes")
-        #expect(session.baseModificationDate == NotesFixtures.baseDate.addingTimeInterval(600))
-    }
-
-    @Test("Save as New Note writes a new note instead of overwriting")
-    func saveAsNewNote() async throws {
-        let runner = FakeNotesRunner.sample()
-        let client = try await connectedClient(runner: runner)
-        let note = try #require(try await client.notes(withIDs: [NotesFixtures.noteID(1)]).first)
-        let session = NotesNoteDraftSession(editing: note)
-
-        let created = try await client.createNote(session.newNoteDraft)
-
-        #expect(created.id != note.id)
-        #expect(await runner.callCount("setBody") == 0)
-        let createdBodies = await runner.calls.compactMap { call -> String? in
-            if case .create(_, let body) = call { return body }
-            return nil
-        }
-        #expect(createdBodies == ["Note 1\n\nBody 1"])
-    }
-
-    @Test("Saving an unchanged note writes the composed text and updates the card")
-    func saveWritesComposedText() async throws {
-        let runner = FakeNotesRunner.sample()
-        let client = try await connectedClient(runner: runner)
-        let note = try #require(try await client.notes(withIDs: [NotesFixtures.noteID(1)]).first)
-        let draft = NotesNoteDraft(
-            noteID: note.id,
-            title: "Note 1",
-            body: "Edited in Kopi",
-            folderID: note.metadata.folderID,
-            baseModificationDate: note.metadata.modificationDate
-        )
-
-        let outcome = try await client.save(draft)
-        let saved = try #require(outcome.savedNote)
-        #expect(outcome.isConflict == false)
-        #expect(saved.excerpt == "Note 1 Edited in Kopi")
-        #expect(saved.modificationDate != note.metadata.modificationDate)
-
-        let written = await runner.calls.compactMap { call -> String? in
-            if case .setBody(_, let body) = call { return body }
-            return nil
-        }
-        #expect(written == ["Note 1\n\nEdited in Kopi"])
-    }
-
-    @Test("A save without a base date never overwrites")
-    func saveWithoutBaseDateConflicts() async throws {
-        let runner = FakeNotesRunner.sample()
-        let client = try await connectedClient(runner: runner)
-        let draft = NotesNoteDraft(noteID: NotesFixtures.noteID(1), title: "Note 1", body: "Text")
-        let outcome = try await client.save(draft)
-        #expect(outcome.isConflict)
-        #expect(await runner.callCount("setBody") == 0)
-    }
-
-    @Test("Notes with content Kopi cannot reproduce are not written")
-    func saveRefusesRichContent() async throws {
-        let runner = FakeNotesRunner.sample()
-        await runner.setContents([
-            NotesFixtures.noteID(1): NotesFixtures.content(1, text: "Table note", html: "<body><table><tr><td>a</td></tr></table></body>")
-        ])
-        let client = try await connectedClient(runner: runner)
-        let draft = NotesNoteDraft(
-            noteID: NotesFixtures.noteID(1),
-            title: "Note 1",
-            body: "Attempted edit",
-            baseModificationDate: NotesFixtures.baseDate
-        )
-
-        var thrown: (any Error)?
-        do {
-            _ = try await client.save(draft)
-        } catch {
-            thrown = error
-        }
-
-        #expect(thrown as? NotesClientError == .noteNotEditable(NotesFixtures.noteID(1)))
-        #expect(await runner.callCount("setBody") == 0)
-
-        let page = try await client.notes(in: NotesFixtures.folderID, page: NotesPage())
-        let table = try #require(page.first { $0.id == NotesFixtures.noteID(1) })
-        #expect(table.hasRichContent)
-        #expect(table.supportsInlineEditing == false)
-    }
-
-    @Test("Creating a note indexes it straight away")
-    func createIndexesTheNote() async throws {
-        let runner = FakeNotesRunner.sample()
-        let client = try await connectedClient(runner: runner)
-        let created = try await client.createNote(
-            NotesNoteDraft(title: "Shopping", body: "Milk", folderID: NotesFixtures.folderID)
-        )
-
-        #expect(created.title == "Shopping")
-        #expect(created.excerpt.contains("Milk"))
-
-        let page = try await client.notes(in: NotesFixtures.folderID, page: NotesPage())
-        #expect(page.first?.id == created.id)
-    }
-
     @Test("Notes are served in Notes' order, one page at a time")
     func pagingFollowsNotesOrder() async throws {
         let runner = FakeNotesRunner.sample()
@@ -494,10 +342,10 @@ struct NotesAutomationClientTests {
         let client = try await connectedClient(runner: runner)
         var thrown: (any Error)?
         do {
-            _ = try await client.notes(in: NotesFixtures.otherFolderID, page: NotesPage())
+            _ = try await client.notes(in: NotesFolderID(rawValue: "missing-folder"), page: NotesPage())
         } catch {
             thrown = error
         }
-        #expect(thrown as? NotesClientError == .folderNotFound(NotesFixtures.otherFolderID))
+        #expect(thrown as? NotesClientError == .folderNotFound(NotesFolderID(rawValue: "missing-folder")))
     }
 }

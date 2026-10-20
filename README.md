@@ -23,12 +23,12 @@ Intel & Apple Silicon · macOS 14+ · [MIT licensed](LICENSE)
 - **Save your favorites.** Pin useful clips and keep reusable snippets in Collection.
 - **See more at a glance.** Preview images, highlighted code, and colors with HEX/RGB copy controls.
 - **Make quick edits.** Update saved text and labels without switching apps.
-- **Bring your notes along.** Connect Apple Notes when you want to browse and search your notes.
+- **Bring your notes along.** Browse and search Apple Notes with **All**, **On My Mac**, and **iCloud** filters. Kopi only reads and copies notes; make edits in Apple Notes.
 - **Stay in control.** Local clipboard history, app exclusions, pause controls, and adjustable retention.
 
 ## Made to stay out of your way
 
-Open Kopi from the menu bar, hover over your MacBook notch, or press **⌥⌘V**.
+Open Kopi from the menu bar, hover over your MacBook notch or the top-center edge of any display, or press **⌥⌘V**.
 Click a card to copy it, press **Return** to paste, or **Space** for a closer look.
 Radial clipboard is on by default. Use **↑ ↓** or **1–8** to select a clip, **Return** to confirm, and **Esc** to cancel. Choose copy-only mode, change its hold shortcut, or switch it off in **Settings → Opening**.
 Auto-paste requires Accessibility permission; copying works without it.

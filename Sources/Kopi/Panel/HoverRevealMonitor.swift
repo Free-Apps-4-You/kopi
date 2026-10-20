@@ -81,7 +81,7 @@ final class HoverRevealMonitor {
     }
 
     private func refreshTargets() {
-        targets = NSScreen.screens.map(ScreenGeometry.geometry(for:)).compactMap { $0.hasNotch ? $0.notchBounds : nil }
+        targets = NSScreen.screens.map { PanelGeometry.triggerRect(for: ScreenGeometry.geometry(for: $0)) }.filter { !$0.isEmpty }
         state.reset()
         cancelDeadline()
     }

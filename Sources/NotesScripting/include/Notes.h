@@ -8,32 +8,9 @@
 
 @class NotesApplication, NotesDocument, NotesWindow, NotesAccount, NotesFolder, NotesNote, NotesAttachment;
 
-enum NotesSaveOptions {
-	NotesSaveOptionsYes = 'yes ' /* Save the file. */,
-	NotesSaveOptionsNo = 'no  ' /* Do not save the file. */,
-	NotesSaveOptionsAsk = 'ask ' /* Ask the user whether or not to save the file. */
-};
-typedef enum NotesSaveOptions NotesSaveOptions;
-
-enum NotesPrintingErrorHandling {
-	NotesPrintingErrorHandlingStandard = 'lwst' /* Standard PostScript error handling */,
-	NotesPrintingErrorHandlingDetailed = 'lwdt' /* print a detailed report of PostScript errors */
-};
-typedef enum NotesPrintingErrorHandling NotesPrintingErrorHandling;
-
-enum NotesSaveableFileFormat {
-	NotesSaveableFileFormatNativeFormat = 'item' /* Native format */
-};
-typedef enum NotesSaveableFileFormat NotesSaveableFileFormat;
-
+// Read-only subset of the Notes scripting dictionary.
 @protocol NotesGenericMethods
 
-- (void) closeSaving:(NotesSaveOptions)saving savingIn:(NSURL *)savingIn;  // Close a document.
-- (void) saveIn:(NSURL *)in_ as:(NotesSaveableFileFormat)as;  // Save a document.
-- (void) printWithProperties:(NSDictionary *)withProperties printDialog:(BOOL)printDialog;  // Print a document.
-- (void) delete;  // Delete an object.
-- (void) duplicateTo:(SBObject *)to withProperties:(NSDictionary *)withProperties;  // Copy an object.
-- (void) moveTo:(SBObject *)to;  // Move an object to a new location.
 
 @end
 
@@ -54,8 +31,6 @@ typedef enum NotesSaveableFileFormat NotesSaveableFileFormat;
 @property (copy, readonly) NSString *version;  // The version number of the application.
 
 - (id) open:(id)x;  // Open a document.
-- (void) print:(id)x withProperties:(NSDictionary *)withProperties printDialog:(BOOL)printDialog;  // Print a document.
-- (void) quitSaving:(NotesSaveOptions)saving;  // Quit the application.
 - (BOOL) exists:(id)x;  // Verify that an object exists.
 - (void) openNoteLocation:(NSString *)x;  // Open a note URL.
 
@@ -76,15 +51,15 @@ typedef enum NotesSaveableFileFormat NotesSaveableFileFormat;
 
 @property (copy, readonly) NSString *name;  // The title of the window.
 - (NSInteger) id;  // The unique identifier of the window.
-@property NSInteger index;  // The index of the window, ordered front to back.
-@property NSRect bounds;  // The bounding rectangle of the window.
+@property (readonly) NSInteger index;  // The index of the window, ordered front to back.
+@property (readonly) NSRect bounds;  // The bounding rectangle of the window.
 @property (readonly) BOOL closeable;  // Does the window have a close button?
 @property (readonly) BOOL miniaturizable;  // Does the window have a minimize button?
-@property BOOL miniaturized;  // Is the window minimized right now?
+@property (readonly) BOOL miniaturized;  // Is the window minimized right now?
 @property (readonly) BOOL resizable;  // Can the window be resized?
-@property BOOL visible;  // Is the window visible right now?
+@property (readonly) BOOL visible;  // Is the window visible right now?
 @property (readonly) BOOL zoomable;  // Does the window have a zoom button?
-@property BOOL zoomed;  // Is the window zoomed right now?
+@property (readonly) BOOL zoomed;  // Is the window zoomed right now?
 @property (copy, readonly) NotesDocument *document;  // The document whose contents are displayed in the window.
 
 
@@ -104,8 +79,8 @@ typedef enum NotesSaveableFileFormat NotesSaveableFileFormat;
 - (SBElementArray<NotesNote *> *) notes;
 - (SBElementArray<NotesAttachment *> *) attachments;
 
-@property (copy) NotesAccount *defaultAccount;  // the default account for creating notes
-@property (copy) NSArray<NotesNote *> *selection;  // the selected note(s)
+@property (copy, readonly) NotesAccount *defaultAccount;  // the default account for creating notes
+@property (copy, readonly) NSArray<NotesNote *> *selection;  // the selected note(s)
 
 @end
 
@@ -115,8 +90,8 @@ typedef enum NotesSaveableFileFormat NotesSaveableFileFormat;
 - (SBElementArray<NotesFolder *> *) folders;
 - (SBElementArray<NotesNote *> *) notes;
 
-@property (copy) NotesFolder *defaultFolder;  // the default folder for creating notes
-@property (copy) NSString *name;  // the name of the account
+@property (copy, readonly) NotesFolder *defaultFolder;  // the default folder for creating notes
+@property (copy, readonly) NSString *name;  // the name of the account
 @property (readonly) BOOL upgraded;  // Is the account upgraded?
 - (NSString *) id;  // the unique identifier of the account
 
@@ -130,7 +105,7 @@ typedef enum NotesSaveableFileFormat NotesSaveableFileFormat;
 - (SBElementArray<NotesFolder *> *) folders;
 - (SBElementArray<NotesNote *> *) notes;
 
-@property (copy) NSString *name;  // the name of the folder
+@property (copy, readonly) NSString *name;  // the name of the folder
 - (NSString *) id;  // the unique identifier of the folder
 @property (readonly) BOOL shared;  // Is the folder shared?
 @property (copy, readonly) id container;  // the container of the folder
@@ -144,10 +119,10 @@ typedef enum NotesSaveableFileFormat NotesSaveableFileFormat;
 
 - (SBElementArray<NotesAttachment *> *) attachments;
 
-@property (copy) NSString *name;  // the name of the note (normally the first line of the body)
+@property (copy, readonly) NSString *name;  // the name of the note (normally the first line of the body)
 - (NSString *) id;  // the unique identifier of the note
 @property (copy, readonly) NotesFolder *container;  // the folder of the note
-@property (copy) NSString *body;  // the HTML content of the note
+@property (copy, readonly) NSString *body;  // the HTML content of the note
 @property (copy, readonly) NSString *plaintext;  // the plaintext content of the note
 @property (copy, readonly) NSDate *creationDate;  // the creation date of the note
 @property (copy, readonly) NSDate *modificationDate;  // the modification date of the note

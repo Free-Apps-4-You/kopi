@@ -22,6 +22,11 @@ release builds run on each processor natively.
 
 By submitting a contribution, you agree to license it under the project's MIT license.
 
+Apple Notes integration is intentionally read-only. Keep create, update, delete,
+and move commands out of the Notes client and scripting bridge. macOS still uses
+its broad Automation permission dialog for reading Notes; it has no separate
+read-only permission for this interface.
+
 ## Publishing a release
 
 Update the version and build number in `Packaging/Info.plist`, commit the change,

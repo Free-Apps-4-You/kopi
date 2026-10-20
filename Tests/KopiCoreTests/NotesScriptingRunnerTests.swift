@@ -30,18 +30,18 @@ struct ScriptingBridgeNotesRunnerTests {
         ])
     }
 
-    @Test("Accounts are read once, and again after a reset")
+    @Test("Accounts refresh on every discovery and proxy resets remain supported")
     func cachesAccountsUntilReset() async throws {
         let application = FakeNotesScriptingApplication.sample()
         let runner = makeRunner(application)
 
         _ = try await runner.accounts()
         _ = try await runner.accounts()
-        #expect(application.accountReads == 1)
+        #expect(application.accountReads == 2)
 
         await runner.reset()
         _ = try await runner.accounts()
-        #expect(application.accountReads == 2)
+        #expect(application.accountReads == 3)
     }
 
     @Test("Note metadata is read for the whole folder")
@@ -125,38 +125,6 @@ struct ScriptingBridgeNotesRunnerTests {
             thrown = error
         }
         #expect(thrown as? NotesClientError == .noteNotFound(NotesFixtures.noteID(1)))
-    }
-
-    @Test("Creating a note adds it to the folder with its body")
-    func createsNote() async throws {
-        let application = FakeNotesScriptingApplication.sample()
-        let folder = application.accountsResult[0].foldersResult[0]
-        let runner = makeRunner(application)
-        _ = try await runner.folders(inAccounts: [NotesFixtures.accountID])
-
-        let created = try await runner.createNote(in: NotesFixtures.folderID, body: "Title\n\nBody")
-
-        #expect(folder.createdNoteBodies == ["Title\n\nBody"])
-        #expect(created.folderID == NotesFixtures.folderID)
-        #expect(created.folderName == "Notes")
-        #expect(created.title == "Created note")
-        #expect(created.modificationDate == NotesFixtures.baseDate)
-    }
-
-    @Test("Saving a note sets its body")
-    func savesBody() async throws {
-        let application = FakeNotesScriptingApplication.sample()
-        let note = try #require(application.notesByID[NotesFixtures.noteID(1).rawValue])
-        let runner = makeRunner(application)
-
-        try await runner.setBody(
-            "Title\n\nBody",
-            for: NotesNoteLocation(id: NotesFixtures.noteID(1), folderID: NotesFixtures.folderID)
-        )
-
-        #expect(note.plainTextValue == "Title\n\nBody")
-        #expect(note.bodyHTMLValue == "Title\n\nBody")
-        #expect(note.calls == [.setBody("Title\n\nBody")])
     }
 
     @Test("Opening a note uses its identifier as the note location")

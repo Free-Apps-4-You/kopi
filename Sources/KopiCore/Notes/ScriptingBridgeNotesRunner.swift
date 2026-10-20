@@ -43,9 +43,7 @@ public actor ScriptingBridgeNotesRunner: NotesAutomationRunning {
     // MARK: - Accounts
 
     public func accounts() async throws -> [NotesAccount] {
-        if accounts.isEmpty {
-            try loadAccounts()
-        }
+        try loadAccounts()
         return accounts
     }
 
@@ -58,16 +56,18 @@ public actor ScriptingBridgeNotesRunner: NotesAutomationRunning {
         }
 
         var loaded: [NotesAccount] = []
+        var objects: [NotesAccountID: any NotesScriptingAccount] = [:]
         for account in scriptingAccounts {
             let identifier = try mapped { try account.identifier() }
             guard !identifier.isEmpty else { continue }
             let id = NotesAccountID(rawValue: identifier)
-            accountObjects[id] = account
+            objects[id] = account
             loaded.append(
                 NotesAccount(id: id, name: try mapped { try account.name() }, isDefault: id == defaultAccountID)
             )
         }
         accounts = loaded
+        accountObjects = objects
     }
 
     // MARK: - Folders
@@ -78,6 +78,9 @@ public actor ScriptingBridgeNotesRunner: NotesAutomationRunning {
         }
         let wanted = accountIDs.isEmpty ? accounts : accounts.filter { accountIDs.contains($0.id) }
         var loaded: [NotesFolder] = []
+        var visited = Set<NotesFolderID>()
+        folderObjects = [:]
+        folderNames = [:]
         for account in wanted {
             guard let object = accountObjects[account.id] else { continue }
             let scriptingFolders = try mapped { try object.folders() }
@@ -86,10 +89,15 @@ public actor ScriptingBridgeNotesRunner: NotesAutomationRunning {
                 defaultFolderID = NotesFolderID(rawValue: identifier)
             }
 
-            for folder in scriptingFolders {
+            var pending = scriptingFolders
+            var cursor = 0
+            while cursor < pending.count {
+                let folder = pending[cursor]
+                cursor += 1
                 let identifier = try mapped { try folder.identifier() }
                 guard !identifier.isEmpty else { continue }
                 let id = NotesFolderID(rawValue: identifier)
+                guard visited.insert(id).inserted else { continue }
                 let name = try mapped { try folder.name() }
                 folderObjects[id] = folder
                 folderNames[id] = name
@@ -102,6 +110,15 @@ public actor ScriptingBridgeNotesRunner: NotesAutomationRunning {
                         noteCount: nil
                     )
                 )
+                do {
+                    pending.append(contentsOf: try folder.folders())
+                } catch {
+                    // Notes can report "no such object" for an empty child list.
+                    // Continue reading this folder's notes, without hiding denials.
+                    guard Self.status(from: error) == AppleEventStatus.noSuchObject else {
+                        throw Self.clientError(from: error, folder: id)
+                    }
+                }
             }
         }
         return loaded
@@ -183,39 +200,6 @@ public actor ScriptingBridgeNotesRunner: NotesAutomationRunning {
             throw failure
         }
         return contents
-    }
-
-    public func createNote(in folderID: NotesFolderID, body: String) async throws -> NotesNoteSummary {
-        guard let folder = folderObjects[folderID] else {
-            throw NotesClientError.folderNotFound(folderID)
-        }
-        do {
-            let note = try folder.createNote(body: body)
-            let identifier = try note.identifier()
-            guard !identifier.isEmpty else {
-                throw NotesClientError.commandFailed("Apple Notes created a note but did not return its identifier.")
-            }
-            return NotesNoteSummary(
-                id: NotesNoteID(rawValue: identifier),
-                folderID: folderID,
-                folderName: folderNames[folderID],
-                title: (try? note.name()) ?? "",
-                modificationDate: try? note.modificationDate(),
-                isProtected: false,
-                isShared: false
-            )
-        } catch let error as NotesClientError {
-            throw error
-        } catch {
-            throw Self.clientError(from: error, folder: folderID)
-        }
-    }
-
-    public func setBody(_ body: String, for note: NotesNoteLocation) async throws {
-        guard let object = try noteObject(for: note) else {
-            throw NotesClientError.noteNotFound(note.id)
-        }
-        try mapped(note: note, folder: note.folderID, { try object.setBody(body) })
     }
 
     public func openNote(_ note: NotesNoteLocation) async throws {

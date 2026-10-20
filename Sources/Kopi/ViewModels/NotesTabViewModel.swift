@@ -3,7 +3,7 @@ import Combine
 import Foundation
 import KopiCore
 
-/// State of the Notes tab: connection, folders, note cards, previews and the composer.
+/// State of the Notes tab: connection, folders, note cards, previews.
 ///
 /// Everything goes through the injected ``NotesClient`` and through
 /// ``ClipboardService`` for copying text, so a Notes failure stays inside this feature:
@@ -19,15 +19,6 @@ final class NotesTabViewModel: ObservableObject {
         var id: NotesNoteID { metadata.id }
     }
 
-    /// A note being written: the draft, and whether a save is in flight.
-    struct Composer: Identifiable {
-        let id = UUID()
-        var session: NotesNoteDraftSession
-        var isSaving = false
-
-        var mode: NotesNoteDraftSession.Mode { session.mode }
-    }
-
     @Published var selection: NotesNoteID?
     var pasteTarget: NotesNoteMetadata? {
         preview?.metadata ?? filteredNotes.first(where: { $0.id == selection }) ?? filteredNotes.first
@@ -39,10 +30,27 @@ final class NotesTabViewModel: ObservableObject {
     @Published private(set) var notes: [NotesNoteMetadata] = []
     @Published private(set) var filteredNotes: [NotesNoteMetadata] = []
     @Published private(set) var preview: Preview?
-    @Published private(set) var composer: Composer?
     @Published private(set) var isBusy = false
     @Published private(set) var isChangingConnection = false
     @Published private(set) var statusMessage: String?
+    @Published var sourceFilter: NotesSourceFilter = .all {
+        didSet {
+            guard sourceFilter != oldValue else { return }
+            selection = nil
+            closePreview()
+            filterTask?.cancel()
+            let included = sourceFolderIDs()
+            filteredNotes = searchText.isEmpty ? notes.filter { included.contains($0.folderID) } : []
+            filterTask = Task { await applyFilter() }
+        }
+    }
+
+    var emptySourceMessage: String {
+        if sourceFilter == .onMyMac, !accounts.contains(where: { $0.location == .onMyMac }) {
+            return "Apple Notes has not reported an On My Mac account. Enable it in Apple Notes → Settings, then refresh Kopi."
+        }
+        return "Notes from the included folders will appear here automatically. Check included folders in Settings if notes are missing."
+    }
     @Published var searchText: String = "" {
         didSet {
             guard searchText != oldValue else { return }
@@ -50,7 +58,6 @@ final class NotesTabViewModel: ObservableObject {
         }
     }
 
-    var onRequestCancel: (() -> Void)?
     private let client: any NotesClient
     private let service: ClipboardService
     private let settings: KopiSettingsStore
@@ -62,7 +69,6 @@ final class NotesTabViewModel: ObservableObject {
     private var filterTask: Task<Void, Never>?
     private var statusTask: Task<Void, Never>?
     private var previewRequestID = UUID()
-    private var composerRequestID = UUID()
     private var connectionGeneration = UUID()
     private var automaticSyncTask: Task<Void, Never>?
     private var isVisible = false
@@ -115,7 +121,7 @@ final class NotesTabViewModel: ObservableObject {
     }
 
     func synchronizeIfNeeded() async {
-        guard isVisible, !isBusy, composer == nil else { return }
+        guard isVisible, !isBusy else { return }
         switch state {
         case .loaded, .empty, .error: await refresh(silently: true)
         default: break
@@ -153,7 +159,7 @@ final class NotesTabViewModel: ObservableObject {
             accounts = connectedAccounts
             folders = connectedFolders
             let revision = folderRevision
-            await client.setIncludedFolders(Set(includedFolders().map(\.id)))
+            await client.setIncludedFolders(folderSelection.usesDefaultWhenEmpty ? nil : Set(includedFolders().map(\.id)))
             if folderSelection.usesDefaultWhenEmpty { _ = try await client.refresh() }
             let connection = await client.connectionState
             state = NotesTabState(connectionState: connection, automationUnavailable: unavailableMessage)
@@ -181,9 +187,7 @@ final class NotesTabViewModel: ObservableObject {
         statusTask?.cancel()
         statusMessage = nil
         previewRequestID = UUID()
-        composerRequestID = UUID()
         preview = nil
-        composer = nil
         selection = nil
         notes = []
         filteredNotes = []
@@ -208,7 +212,7 @@ final class NotesTabViewModel: ObservableObject {
         let generation = connectionGeneration
         let revision = folderRevision
         defer { finishFolderWork(generation: generation) }
-        await client.setIncludedFolders(Set(includedFolders().map(\.id)))
+        await client.setIncludedFolders(folderSelection.usesDefaultWhenEmpty ? nil : Set(includedFolders().map(\.id)))
         do {
             if silently {
                 _ = try await client.refresh()
@@ -251,15 +255,20 @@ final class NotesTabViewModel: ObservableObject {
         guard connectionGeneration == generation, folderRevision == revision, !Task.isCancelled else { return }
         let updated = Self.sortedByModification(collected)
         if notes != updated { notes = updated }
-        // A deleted note cannot leave a stale preview on screen. Drafts remain intact.
+        // A deleted note cannot leave a stale preview on screen.
         if let preview, !updated.contains(where: { $0.id == preview.id }) { closePreview() }
         state = notes.isEmpty ? .empty : .loaded
         await applyFilter()
     }
 
-    /// Folders the user included, or the default folder before anything was chosen.
+    /// Folders the user included, or all folders before anything was chosen.
     private func includedFolders() -> [NotesFolder] {
         folderSelection.effectiveFolders(from: folders)
+    }
+
+    private func sourceFolderIDs() -> Set<NotesFolderID> {
+        let accountIDs = Set(accounts.filter { sourceFilter.includes($0) }.map(\.id))
+        return Set(includedFolders().filter { accountIDs.contains($0.accountID) }.map(\.id))
     }
 
     // MARK: - Folders
@@ -329,17 +338,19 @@ final class NotesTabViewModel: ObservableObject {
         }
         let generation = connectionGeneration
         let originalQuery = searchText
+        let originalSource = sourceFilter
         let snapshot = notes
+        let folderIDs = sourceFolderIDs()
         let query = originalQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else {
-            if filteredNotes != notes { filteredNotes = notes }
+            let result = notes.filter { folderIDs.contains($0.folderID) }
+            if filteredNotes != result { filteredNotes = result }
             return
         }
-        let folderIDs = Set(includedFolders().map(\.id))
         do {
             let result = try await client.searchNotes(query, in: folderIDs)
             guard !Task.isCancelled, connectionGeneration == generation, searchText == originalQuery,
-                  folderIDs == Set(includedFolders().map(\.id)), notes == snapshot,
+                  sourceFilter == originalSource, folderIDs == sourceFolderIDs(), notes == snapshot,
                   state.showsNoteList || state == .empty else { return }
             if filteredNotes != result { filteredNotes = result }
         } catch {
@@ -416,106 +427,6 @@ final class NotesTabViewModel: ObservableObject {
         } catch {
             showStatus(userFacingDescription(error))
         }
-    }
-
-    // MARK: - Composing
-
-    /// Opens the editor for a note, or Apple Notes when the note is richer than plain
-    /// text: the check is made against the body Notes hands over, not against the card.
-    func beginEdit(_ metadata: NotesNoteMetadata) async {
-        let requestID = UUID()
-        composerRequestID = requestID
-        guard !metadata.requiresAppleNotes else {
-            await openInNotes(metadata)
-            return
-        }
-        guard let note = try? await client.notes(withIDs: [metadata.id]).first else {
-            showStatus("The note could not be read.")
-            return
-        }
-        guard composerRequestID == requestID else { return }
-        guard !note.metadata.requiresAppleNotes else {
-            replace(id: note.metadata.id, with: note.metadata)
-            await openInNotes(metadata)
-            showStatus("That note has content Kopi edits in Apple Notes.")
-            return
-        }
-        composer = Composer(session: NotesNoteDraftSession(editing: note, folderID: metadata.folderID))
-    }
-
-    func cancelComposer() {
-        if let onRequestCancel { onRequestCancel(); return }
-        discardComposer()
-    }
-    func discardComposer() {
-        composerRequestID = UUID()
-        composer = nil
-    }
-
-    func updateComposer(_ change: (inout NotesNoteDraftSession) -> Void) {
-        guard var composer else { return }
-        change(&composer.session)
-        self.composer = composer
-    }
-
-    func saveComposer() async {
-        guard var composer, !composer.isSaving else { return }
-        guard !composer.session.isNew else { return }
-        let requestID = composerRequestID
-        composer.isSaving = true
-        composer.session.beginSaving()
-        self.composer = composer
-
-        let draft = composer.session.draft
-        do {
-            let outcome = try await client.save(draft)
-            guard composerRequestID == requestID else { return }
-            var session = composer.session
-            guard let saved = session.apply(outcome) else {
-                let message = "This note changed in Apple Notes. Reload its latest version before saving."
-                session.setError(message)
-                composer.session = session
-                composer.isSaving = false
-                self.composer = composer
-                showStatus(message)
-                return
-            }
-            replace(id: saved.id, with: saved)
-            self.composer = nil
-            showStatus("Note saved in Apple Notes")
-        } catch {
-            guard composerRequestID == requestID else { return }
-            composer.isSaving = false
-            composer.session.setError(userFacingDescription(error))
-            self.composer = composer
-            showStatus(userFacingDescription(error))
-        }
-    }
-
-    /// Takes the note as Apple Notes has it now, keeping the composer open.
-    func reloadConflict() async {
-        guard let composer, let noteID = composer.session.noteID else { return }
-        let requestID = composerRequestID
-        guard let note = try? await client.notes(withIDs: [noteID]).first else {
-            showStatus("That note could not be re-read from Apple Notes.")
-            return
-        }
-        guard composerRequestID == requestID else { return }
-        var session = composer.session
-        session.reload(with: note)
-        self.composer = Composer(session: session, isSaving: false)
-        replace(id: note.metadata.id, with: note.metadata)
-        showStatus("Reloaded from Apple Notes")
-    }
-
-    private func replace(id: NotesNoteID, with metadata: NotesNoteMetadata) {
-        if let index = notes.firstIndex(where: { $0.id == id }) {
-            notes[index] = metadata
-        } else {
-            notes.insert(metadata, at: 0)
-        }
-        notes = Self.sortedByModification(notes)
-        scheduleFilter()
     }
 
     // MARK: - Failures

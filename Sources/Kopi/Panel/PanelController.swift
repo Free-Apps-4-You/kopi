@@ -196,7 +196,7 @@ final class PanelController: NSObject {
     private func focusSearchField() {
         guard let panel, model.preview == nil, model.editor == nil,
               model.newItemDraft == nil,
-              model.notes.preview == nil, model.notes.composer == nil, model.passwords.draft == nil else { return }
+              model.notes.preview == nil, model.passwords.draft == nil else { return }
         func find(_ view: NSView) -> NSTextField? {
             if let field = view as? NSTextField, field.identifier?.rawValue == "kopi.search" { return field }
             return view.subviews.lazy.compactMap { find($0) }.first
@@ -472,10 +472,6 @@ final class PanelController: NSObject {
             return false
         }
         if model.section == .notes, event.keyCode == PanelKeyBindings.escapeKeyCode {
-            if model.notes.composer != nil {
-                model.notes.cancelComposer()
-                return true
-            }
             if model.notes.preview != nil {
                 model.notes.closePreview()
                 return true
@@ -486,7 +482,7 @@ final class PanelController: NSObject {
             let action = PanelKeyBindings.action(for: PanelKeyEvent(
                 keyCode: event.keyCode, characters: event.charactersIgnoringModifiers ?? "",
                 modifiers: Self.modifiers(from: event.modifierFlags),
-                presentation: notes.composer != nil ? .editor : .grid,
+                presentation: .grid,
                 isTextEditing: isEditingText, hasVisibleCard: notes.pasteTarget != nil,
                 visibleCardCount: notes.filteredNotes.count))
             switch action {
@@ -495,10 +491,10 @@ final class PanelController: NSObject {
             case .togglePreview:
                 if notes.preview != nil { notes.closePreview() }
                 else if let note = notes.pasteTarget { Task { await notes.preparePreview(note) } }
-            case .editSelection: if let note = notes.pasteTarget { Task { await notes.beginEdit(note) } }
+            case .editSelection: break
             case .pasteVisibleCard(let position): pasteNote(notes.filteredNotes[position - 1])
             case .dismiss: dismiss()
-            case .cancelEditor: notes.cancelComposer()
+            case .cancelEditor: notes.closePreview()
             default: return false
             }
             return true

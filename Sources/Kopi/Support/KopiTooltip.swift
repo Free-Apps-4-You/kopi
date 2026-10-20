@@ -9,7 +9,29 @@ final class KopiTooltipPresenter {
     private var owner: UUID?
     private var pending: Task<Void, Never>?
     private var panel: NSPanel?
+    private var interactionMonitor: Any?
+    private var menuObservers: [NSObjectProtocol] = []
+    private(set) var isMenuTracking = false
+    var hasPendingRequest: Bool { pending != nil }
+    var isVisible: Bool { panel?.isVisible == true }
+
+    private init() {
+        interactionMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown]) { [weak self] event in
+            MainActor.assumeIsolated { self?.hideAll() }
+            return event
+        }
+        menuObservers.append(NotificationCenter.default.addObserver(forName: NSMenu.didBeginTrackingNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.isMenuTracking = true
+                self?.hideAll()
+            }
+        })
+        menuObservers.append(NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.isMenuTracking = false }
+        })
+    }
     func request(_ text: String, owner: UUID) {
+        guard !isMenuTracking else { return }
         pending?.cancel(); panel?.orderOut(nil); self.owner = owner
         pending = Task { [weak self] in
             do { try await Task.sleep(for: Self.delay) } catch { return }
@@ -28,7 +50,7 @@ final class KopiTooltipPresenter {
         guard self.owner == owner else { return }
         pending?.cancel(); pending = nil; panel?.orderOut(nil); self.owner = nil
     }
-    func hideAll() { pending?.cancel(); panel?.orderOut(nil); owner = nil }
+    func hideAll() { pending?.cancel(); pending = nil; panel?.orderOut(nil); owner = nil }
     private func makePanel() -> NSPanel {
         let panel = NonActivatingPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         panel.backgroundColor = .clear; panel.isOpaque = false; panel.hasShadow = true

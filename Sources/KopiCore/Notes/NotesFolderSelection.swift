@@ -2,9 +2,8 @@ import Foundation
 
 /// Which Apple Notes folders the Notes tab reads.
 ///
-/// The user's choice is kept as identifiers; before anything was chosen the default
-/// folder of the connected accounts is the one that is read, and if Notes has no
-/// default folder the first one stands in.
+/// Explicit folder choices are preserved. Without a choice, all folders in every
+/// connected account are included, including accounts discovered later.
 public struct NotesFolderSelection: Sendable, Equatable {
     public private(set) var includedFolderIDs: Set<NotesFolderID>
     public private(set) var usesDefaultWhenEmpty: Bool
@@ -25,15 +24,12 @@ public struct NotesFolderSelection: Sendable, Equatable {
         }
     }
 
-    /// Whether a folder is read: one the user included, or the default folder while no
+    /// Whether a folder is read: one the user included, or all folders while no
     /// choice has been made yet.
     public func isIncluded(_ folder: NotesFolder, among folders: [NotesFolder]) -> Bool {
         if includedFolderIDs.contains(folder.id) { return true }
         guard includedFolderIDs.isEmpty, usesDefaultWhenEmpty else { return false }
-        if let defaultFolder = folders.first(where: \.isDefault) {
-            return defaultFolder.id == folder.id
-        }
-        return folders.first?.id == folder.id
+        return folders.contains { $0.id == folder.id }
     }
 
     /// The folders to read, in the order Notes lists them.
@@ -41,10 +37,7 @@ public struct NotesFolderSelection: Sendable, Equatable {
         let chosen = folders.filter { includedFolderIDs.contains($0.id) }
         guard chosen.isEmpty else { return chosen }
         guard usesDefaultWhenEmpty else { return [] }
-        if let defaultFolder = folders.first(where: \.isDefault) {
-            return [defaultFolder]
-        }
-        return folders.first.map { [$0] } ?? []
+        return folders
     }
 
     /// The chosen folders that still exist in the connected accounts.
