@@ -9,10 +9,9 @@ if [[ ! -d "$bundle" ]]; then
     exit 1
 fi
 codesign --verify --deep --strict "$bundle"
-version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$bundle/Contents/Info.plist")
 architecture="$(uname -m)"
-image="$root/dist/Kopi-$version-$architecture.dmg"
-archive="$root/dist/Kopi-$version-$architecture.zip"
+image="$root/dist/Kopi-$architecture.dmg"
+archive="$root/dist/Kopi-$architecture.zip"
 staging="$(mktemp -d "${TMPDIR:-/tmp}/kopi-dmg.XXXXXX")"
 trap 'rm -rf "$staging"' EXIT
 ditto "$bundle" "$staging/Kopi.app"

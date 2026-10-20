@@ -6,7 +6,7 @@
 
 Your clipboard, ready when you need it. A native, open-source clipboard manager for macOS.
 
-**[Download for Mac (.dmg)](https://github.com/Free-Apps-4-You/kopi/releases/download/v0.2.0/Kopi-0.2.0-arm64.dmg)** · [Application ZIP](https://github.com/Free-Apps-4-You/kopi/releases/download/v0.2.0/Kopi-0.2.0-arm64.zip) · [Releases](https://github.com/Free-Apps-4-You/kopi/releases)
+**[Download for Mac (.dmg)](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-arm64.dmg)** · [Application ZIP](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-arm64.zip) · [Releases](https://github.com/Free-Apps-4-You/kopi/releases)
 
 Apple Silicon · macOS 14+ · [MIT licensed](LICENSE)
 
@@ -39,7 +39,7 @@ Auto-paste requires Accessibility permission; copying works without it.
 
 ## Get started
 
-1. [Download the DMG](https://github.com/Free-Apps-4-You/kopi/releases/download/v0.2.0/Kopi-0.2.0-arm64.dmg).
+1. [Download the DMG](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-arm64.dmg).
 2. Open it and drag **Kopi** into **Applications**.
 3. Launch Kopi and start copying.
 

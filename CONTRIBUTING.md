@@ -18,3 +18,13 @@ Run the app with `swift run Kopi`, or create a bundle with `scripts/build-app.sh
 Package that bundle with `scripts/build-dmg.sh`.
 
 By submitting a contribution, you agree to license it under the project's MIT license.
+
+## Publishing a release
+
+Update the version and build number in `Packaging/Info.plist`, commit the change,
+and push an annotated version tag such as `v0.3.0`. The tag must match the app version.
+After the checks and packaging pass, GitHub Actions publishes the DMG and application
+ZIP under Releases. Use the tag annotation for the release notes.
+
+Main-branch builds remain available as Actions artifacts. The README's download
+links always point to the latest published installers.
