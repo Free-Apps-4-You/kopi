@@ -21,6 +21,11 @@ struct PanelOutline: InsettableShape {
     var attachment: PanelAttachment?
     private var inset: CGFloat = 0
 
+    init(cornerRadius: CGFloat, attachment: PanelAttachment?) {
+        self.cornerRadius = cornerRadius
+        self.attachment = attachment
+    }
+
     func path(in rect: CGRect) -> Path {
         let neckHeight = attachment?.neckHeight ?? 0
         let bounds = rect.insetBy(dx: inset, dy: inset)

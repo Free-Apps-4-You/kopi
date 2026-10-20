@@ -29,8 +29,10 @@ so building Copily does not need Xcode; only regenerating it does
 All commands run from the project root.
 
 GitHub Actions runs the serial regression suite, isolated storage self-check,
-release app build, and signature verification on macOS for pushes to `main` and
-pull requests. Build outputs and local review captures are excluded from Git.
+release app build, signature verification, and DMG packaging on macOS for pushes
+to `main` and pull requests. Each successful run provides a `Copily-macOS`
+artifact containing the disk image and SHA-256 checksum. Build outputs and local
+review captures are excluded from Git.
 
 | Command | What it does |
 |---|---|
@@ -39,6 +41,7 @@ pull requests. Build outputs and local review captures are excluded from Git.
 | `swift run Copily` | Starts Copily as a menu bar app. Press ⌥⌘V, or use the menu bar icon, to open the panel. |
 | `swift run Copily --selfcheck` | Headless self-check against a throwaway database. Prints diagnostics (journal mode, dedupe, search, retention, asset preservation) and exits 0 on success, 1 on failure. |
 | `scripts/build-app.sh` | Release build assembled into a runnable `dist/Copily.app`, ad-hoc signed, and prints the path. |
+| `scripts/build-dmg.sh` | Packages that bundle as `dist/Copily-<version>-<architecture>.dmg` with an Applications shortcut and checksum. |
 
 `swift run Copily` starts an accessory application: it has no Dock icon, so quit
 it from the menu bar item or with `Ctrl+C` in the terminal that launched it.
