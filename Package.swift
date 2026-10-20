@@ -15,13 +15,13 @@ let swiftTestingPluginSettings = swiftTestingPluginPaths.flatMap { path in
 }
 
 let package = Package(
-    name: "Copily",
+    name: "Kopi",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .library(name: "CopilyCore", targets: ["CopilyCore"]),
-        .executable(name: "Copily", targets: ["Copily"])
+        .library(name: "KopiCore", targets: ["KopiCore"]),
+        .executable(name: "Kopi", targets: ["Kopi"])
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift", from: "7.0.0")
@@ -34,19 +34,19 @@ let package = Package(
             ]
         ),
         .target(
-            name: "CopilyCore",
+            name: "KopiCore",
             dependencies: [
                 "NotesScripting",
                 .product(name: "GRDB", package: "GRDB.swift")
             ]
         ),
         .executableTarget(
-            name: "Copily",
-            dependencies: ["CopilyCore"]
+            name: "Kopi",
+            dependencies: ["KopiCore"]
         ),
         .testTarget(
-            name: "CopilyCoreTests",
-            dependencies: ["CopilyCore", "Copily"],
+            name: "KopiCoreTests",
+            dependencies: ["KopiCore", "Kopi"],
             swiftSettings: swiftTestingPluginSettings
         )
     ],

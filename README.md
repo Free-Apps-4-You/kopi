@@ -1,18 +1,18 @@
 <div align="center">
 
-# Copily
+# Kopi
 
 ### A little less retyping. A lot more flow.
 
 Your clipboard, ready when you need it. A native, open-source clipboard manager for macOS.
 
-**[Download for Mac (.dmg)](https://github.com/Free-Apps-4-You/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.dmg)** · [Application ZIP](https://github.com/Free-Apps-4-You/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.zip) · [Releases](https://github.com/Free-Apps-4-You/copily/releases)
+**[Download for Mac (.dmg)](https://github.com/Free-Apps-4-You/kopi/releases/download/v0.2.0/Kopi-0.2.0-arm64.dmg)** · [Application ZIP](https://github.com/Free-Apps-4-You/kopi/releases/download/v0.2.0/Kopi-0.2.0-arm64.zip) · [Releases](https://github.com/Free-Apps-4-You/kopi/releases)
 
 Apple Silicon · macOS 14+ · [MIT licensed](LICENSE)
 
 </div>
 
-![Copily showing a collection of code, links, text, and a color swatch](docs/images/copily-collection.png)
+![Kopi showing a collection of code, links, text, and a color swatch](docs/images/kopi-collection.png)
 
 ## Keep the good stuff close
 
@@ -25,27 +25,27 @@ Apple Silicon · macOS 14+ · [MIT licensed](LICENSE)
 
 ## Made to stay out of your way
 
-Open Copily from the menu bar, hover over your MacBook notch, or press **⌥⌘V**.
+Open Kopi from the menu bar, hover over your MacBook notch, or press **⌥⌘V**.
 Click a card to copy it, press **Return** to paste, or **Space** for a closer look.
 Auto-paste requires Accessibility permission; copying works without it.
 
 | Colors, without the guesswork | Your clipboard, your choices |
 | :---: | :---: |
-| ![Copily color inspector showing HEX and RGB copy controls](docs/images/copily-colors.png) | ![Copily Privacy settings with local storage and application exclusions](docs/images/copily-privacy.png) |
+| ![Kopi color inspector showing HEX and RGB copy controls](docs/images/kopi-colors.png) | ![Kopi Privacy settings with local storage and application exclusions](docs/images/kopi-privacy.png) |
 
 *Screenshots use sample content.*
 
 ## Get started
 
-1. [Download the DMG](https://github.com/Free-Apps-4-You/copily/releases/download/v0.1.0/Copily-0.1.0-arm64.dmg).
-2. Open it and drag **Copily** into **Applications**.
-3. Launch Copily and start copying.
+1. [Download the DMG](https://github.com/Free-Apps-4-You/kopi/releases/download/v0.2.0/Kopi-0.2.0-arm64.dmg).
+2. Open it and drag **Kopi** into **Applications**.
+3. Launch Kopi and start copying.
 
 The current preview is ad-hoc signed and not notarized. macOS may block installation.
 
 ## Open source, open to ideas
 
-Copily is free and open source under the [MIT license](LICENSE).
-Found a bug or have an idea? [Open an issue](https://github.com/Free-Apps-4-You/copily/issues/new) or send a pull request.
+Kopi is free and open source under the [MIT license](LICENSE).
+Found a bug or have an idea? [Open an issue](https://github.com/Free-Apps-4-You/kopi/issues/new) or send a pull request.
 
 [Contributing](CONTRIBUTING.md) · [Third-party notices](THIRD_PARTY_NOTICES.md)

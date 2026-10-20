@@ -1,6 +1,6 @@
 # Third-party notices
 
-Copily uses [GRDB.swift](https://github.com/groue/GRDB.swift), distributed under the MIT license. Its notice is reproduced below.
+Kopi uses [GRDB.swift](https://github.com/groue/GRDB.swift), distributed under the MIT license. Its notice is reproduced below.
 
 Copyright (C) 2015-2025 Gwendal Roué
 

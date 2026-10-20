@@ -28,17 +28,17 @@ jobs:
       - name: Run regression tests
         run: swift test --no-parallel
       - name: Run isolated storage self-check
-        run: swift run Copily --selfcheck
+        run: swift run Kopi --selfcheck
       - name: Build application bundle
         run: scripts/build-app.sh
       - name: Verify application signature
-        run: codesign --verify --deep --strict dist/Copily.app
+        run: codesign --verify --deep --strict dist/Kopi.app
       - name: Create and verify DMG and application ZIP
         run: scripts/build-dmg.sh
       - name: Upload DMG and application ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Copily-macOS
+          name: Kopi-macOS
           path: |
             dist/*.dmg
             dist/*.zip

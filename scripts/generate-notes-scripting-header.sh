@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Regenerates the checked-in Apple Notes scripting interface from the application's
 # scripting dictionary with Xcode's sdef and sdp tools. The generated files are
-# committed, so Copily builds with the Command Line Tools alone; Xcode is needed only
+# committed, so Kopi builds with the Command Line Tools alone; Xcode is needed only
 # to run this script.
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,7 +33,7 @@ at it, for example:
 
     DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer scripts/generate-notes-scripting-header.sh
 
-Copily itself builds without Xcode: the generated files are checked in.
+Kopi itself builds without Xcode: the generated files are checked in.
 MESSAGE
     exit 1
 fi

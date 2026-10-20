@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Assembles dist/Copily.app from a release build so the bundle can be launched
+# Assembles dist/Kopi.app from a release build so the bundle can be launched
 # from Finder, register a login item, and receive Automation consent as a bundle
 # rather than as a terminal process. The bundle is ad-hoc signed, which is enough
 # for a local run; see README.md for the signing a distributed copy needs.
@@ -8,7 +8,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-product="Copily"
+product="Kopi"
 bundle="$root/dist/$product.app"
 configuration="release"
 
@@ -30,6 +30,6 @@ cp "$executable" "$bundle/Contents/MacOS/$product"
 cp "$root/Packaging/Info.plist" "$bundle/Contents/Info.plist"
 printf 'APPL????' > "$bundle/Contents/PkgInfo"
 
-codesign --force --sign - --entitlements "$root/Packaging/Copily.entitlements" "$bundle"
+codesign --force --sign - --entitlements "$root/Packaging/Kopi.entitlements" "$bundle"
 
 echo "Built $bundle"
