@@ -16,8 +16,9 @@ swift run Kopi --selfcheck
 
 Run the app with `swift run Kopi`, or create a bundle with `scripts/build-app.sh`.
 Package that bundle with `scripts/build-dmg.sh`.
-These scripts build for the current Mac. Installer filenames follow the
-application's actual architecture; release builds run on each processor natively.
+These scripts build for the current Mac. Downloads are named `Kopi-Intel-Mac`
+or `Kopi-Apple-Silicon-Mac` to match the application's actual architecture;
+release builds run on each processor natively.
 
 By submitting a contribution, you agree to license it under the project's MIT license.
 
@@ -28,7 +29,8 @@ and push an annotated version tag such as `v0.3.3`. The tag must match the app v
 GitHub Actions runs the tests and packaged-app self-check on both Apple Silicon
 and Intel macOS 15 runners. After both pass, it publishes separate DMG and application
 ZIP downloads for each processor under Releases. Both builds require macOS 14+.
-Use the tag annotation for the release notes.
+Use the tag annotation for the app's release notes. The workflow adds a processor
+selection table and descriptive labels to the downloads automatically.
 
 The offscreen panel pixel snapshot runs on Apple Silicon. It is excluded on the
 Intel CI virtual machine because its virtual Metal device aborts in SwiftUI's

@@ -6,9 +6,9 @@
 
 Your clipboard, ready when you need it. A native, open-source clipboard manager for macOS.
 
-**Download for Mac: [Apple Silicon (.dmg)](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-arm64.dmg) · [Intel (.dmg)](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-x86_64.dmg)**
+**Download for Mac: [Apple Silicon (.dmg)](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-Apple-Silicon-Mac.dmg) · [Intel (.dmg)](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-Intel-Mac.dmg)**
 
-[Apple Silicon ZIP](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-arm64.zip) · [Intel ZIP](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-x86_64.zip) · [Releases](https://github.com/Free-Apps-4-You/kopi/releases)
+[Apple Silicon ZIP](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-Apple-Silicon-Mac.zip) · [Intel ZIP](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-Intel-Mac.zip) · [Releases](https://github.com/Free-Apps-4-You/kopi/releases)
 
 Intel & Apple Silicon · macOS 14+ · [MIT licensed](LICENSE)
 
@@ -41,7 +41,7 @@ Auto-paste requires Accessibility permission; copying works without it.
 
 ## Get started
 
-1. Download the DMG for your Mac: [Apple Silicon](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-arm64.dmg) or [Intel](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-x86_64.dmg). Check **Apple menu → About This Mac** if you're unsure.
+1. Download the DMG for your Mac: [Apple Silicon](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-Apple-Silicon-Mac.dmg) or [Intel](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-Intel-Mac.dmg). Check **Apple menu → About This Mac** if you're unsure.
 2. Open it and drag **Kopi** into **Applications**.
 3. Launch Kopi and start copying.
 

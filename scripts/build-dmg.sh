@@ -11,11 +11,12 @@ fi
 codesign --verify --deep --strict "$bundle"
 architecture="$(lipo -archs "$bundle/Contents/MacOS/Kopi")"
 case "$architecture" in
-    arm64|x86_64) ;;
+    arm64) platform="Apple-Silicon-Mac" ;;
+    x86_64) platform="Intel-Mac" ;;
     *) echo "error: unsupported application architecture: $architecture" >&2; exit 1 ;;
 esac
-image="$root/dist/Kopi-$architecture.dmg"
-archive="$root/dist/Kopi-$architecture.zip"
+image="$root/dist/Kopi-$platform.dmg"
+archive="$root/dist/Kopi-$platform.zip"
 staging="$(mktemp -d "${TMPDIR:-/tmp}/kopi-dmg.XXXXXX")"
 trap 'rm -rf "$staging"' EXIT
 ditto "$bundle" "$staging/Kopi.app"

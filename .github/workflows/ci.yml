@@ -81,6 +81,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Preserve annotated tag notes instead of only the tagged commit message.
+          fetch-depth: 0
       - name: Download verified installers
         uses: actions/download-artifact@v4
         with:
@@ -93,5 +96,25 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" dist/*.dmg dist/*.zip \
-            --verify-tag --notes-from-tag --title "Kopi ${RELEASE_TAG#v}" --latest
+          cat > release-notes.md <<EOF
+          ## Download Kopi for your Mac
+
+          Requires **macOS 14 or later**. Choose the installer for your processor:
+
+          | Your Mac | DMG installer (recommended) | Application ZIP |
+          | --- | --- | --- |
+          | **Intel Mac** — Intel processors, including 2019 MacBooks | [Download Intel DMG](https://github.com/$GH_REPO/releases/download/$RELEASE_TAG/Kopi-Intel-Mac.dmg) | [Intel ZIP](https://github.com/$GH_REPO/releases/download/$RELEASE_TAG/Kopi-Intel-Mac.zip) |
+          | **Apple Silicon Mac** — M-series chips, M1 and later | [Download Apple Silicon DMG](https://github.com/$GH_REPO/releases/download/$RELEASE_TAG/Kopi-Apple-Silicon-Mac.dmg) | [Apple Silicon ZIP](https://github.com/$GH_REPO/releases/download/$RELEASE_TAG/Kopi-Apple-Silicon-Mac.zip) |
+
+          Check **Apple menu → About This Mac** for your processor. Open the DMG and drag **Kopi** into **Applications**.
+
+          ---
+
+          EOF
+          git for-each-ref --format='%(contents)' "refs/tags/$RELEASE_TAG" >> release-notes.md
+          gh release create "$RELEASE_TAG" \
+            "dist/Kopi-Intel-Mac.dmg#Kopi-Intel-Mac.dmg — Intel processor Macs, macOS 14+" \
+            "dist/Kopi-Apple-Silicon-Mac.dmg#Kopi-Apple-Silicon-Mac.dmg — M1 and later Macs, macOS 14+" \
+            "dist/Kopi-Intel-Mac.zip#Kopi-Intel-Mac.zip — Intel Mac application archive" \
+            "dist/Kopi-Apple-Silicon-Mac.zip#Kopi-Apple-Silicon-Mac.zip — Apple Silicon Mac application archive" \
+            --verify-tag --notes-file release-notes.md --title "Kopi ${RELEASE_TAG#v}" --latest
