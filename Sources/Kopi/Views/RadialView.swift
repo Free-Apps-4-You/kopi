@@ -59,7 +59,7 @@ struct RadialView: View {
         return Button { choose(index) } label: {
             ZStack {
                 shape.fill((selected ? KopiTheme.selectedCardSurface : KopiTheme.cardSurface)
-                    .opacity(reduceTransparency ? 1 : (selected ? 0.552 : 0.216)), style: FillStyle(eoFill: true))
+                    .opacity(reduceTransparency ? 1 : (selected ? 0.552 : 0.216)), style: FillStyle(eoFill: count == 1))
                 if item.kind == .image {
                     RadialImagePreview(item: item, previews: previews, layout: RadialContentLayout(index: index, count: count), bounds: bounds, reduceTransparency: reduceTransparency)
                 } else {
@@ -73,12 +73,12 @@ struct RadialView: View {
                 shape.stroke(selected ? KopiTheme.accent : Color.primary.opacity(0.14), lineWidth: selected ? 1.5 : 0.75)
             }
             .frame(width: wheelSize, height: wheelSize)
-            .clipShape(shape, style: FillStyle(eoFill: true))
-            .contentShape(shape, eoFill: true)
+            .clipShape(shape, style: FillStyle(eoFill: count == 1))
+            .contentShape(shape, eoFill: count == 1)
             .opacity(state.loading ? 0.35 : 1)
         }
         .buttonStyle(.plain)
-        .contentShape(shape, eoFill: true)
+        .contentShape(shape, eoFill: count == 1)
         .disabled(state.loading)
         .accessibilityLabel("\(index + 1). \(state.copiesOnly ? "Copy" : "Paste") \(item.displayTitle)")
         .accessibilityAddTraits(selected ? [.isSelected] : [])
