@@ -5,6 +5,28 @@ public enum RadialGeometry {
     public static let outerRadius = 220.0
     public static let cancelRadius = 48.0
     public static let hoverScale = 1.272
+    public static let singleItemHoverScale = 1.248
+    // Keep the full outward zoom and its controls inside the transparent window.
+    public static let windowWidth = 600.0
+    public static let windowHeight = 672.0
+    public static let wheelCenterX = 300.0
+    public static let wheelCenterY = 300.0
+    public static let dockCenterY = 564.0
+
+    /// Move only the controls when a lower focused wedge needs their space.
+    public static func dockY(focused: Int?, count: Int, reduceMotion: Bool = false) -> Double {
+        guard !reduceMotion, let focused, (0..<count).contains(focused) else { return dockCenterY }
+        let sweep = 2 * Double.pi / Double(count)
+        let start = Double(focused) * sweep - sweep / 2
+        let end = start + sweep
+        let bottomDirection = (.pi - start).truncatingRemainder(dividingBy: 2 * .pi)
+        let containsBottom = (bottomDirection < 0 ? bottomDirection + 2 * .pi : bottomDirection) <= sweep
+        let bottom = max(-cos(start) * outerRadius, -cos(end) * outerRadius,
+                         -cos(start) * cancelRadius, -cos(end) * cancelRadius,
+                         containsBottom ? outerRadius : -outerRadius)
+        let scale = count == 1 ? singleItemHoverScale : hoverScale
+        return max(dockCenterY, wheelCenterY + bottom * scale + 48)
+    }
 }
 
 public enum RadialSelection {

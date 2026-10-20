@@ -22,21 +22,31 @@ struct RadialView: View {
             Circle().fill(KopiTheme.surface.opacity(reduceTransparency ? 1 : 0.12))
                 .overlay(Circle().strokeBorder(Color.primary.opacity(0.1)))
                 .shadow(color: .black.opacity(0.2), radius: 20, y: 9)
-                .frame(width: wheelSize, height: wheelSize).position(x: 300, y: 300)
+                .frame(width: wheelSize, height: wheelSize).position(x: RadialGeometry.wheelCenterX, y: RadialGeometry.wheelCenterY)
                 .allowsHitTesting(false)
             ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
                 segment(item, index: index)
             }
-            center.position(x: 300, y: 300)
-            dock.position(x: 300, y: 564).zIndex(3)
+            center.position(x: RadialGeometry.wheelCenterX, y: RadialGeometry.wheelCenterY)
+            dock.position(x: RadialGeometry.wheelCenterX,
+                          y: state.controlsY).zIndex(3)
 
         }
-        .frame(width: 600, height: 600)
-        .scaleEffect(shown ? 1 : 0.94)
+        .frame(width: RadialGeometry.windowWidth, height: RadialGeometry.windowHeight)
+        .scaleEffect(shown ? 1 : 0.94,
+                     anchor: UnitPoint(x: RadialGeometry.wheelCenterX / RadialGeometry.windowWidth,
+                                       y: RadialGeometry.wheelCenterY / RadialGeometry.windowHeight))
         .opacity(shown ? 1 : 0)
         .animation(reduceMotion ? nil : (state.presented ? .spring(response: 0.28, dampingFraction: 0.86) : .easeOut(duration: 0.1)), value: shown)
         .animation(reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.82), value: state.selected)
         .animation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.9), value: state.items)
+        .animation(reduceMotion ? nil : .spring(response: 0.22, dampingFraction: 0.82), value: state.controlsY)
+        .onChange(of: state.selected) { _, selected in
+            let requested = RadialGeometry.dockY(focused: selected, count: state.items.count, reduceMotion: reduceMotion)
+            // Once controls move down, keep them there for this opening. Moving
+            // toward them must not make them jump back up under the pointer.
+            if requested > state.controlsY { state.controlsY = requested }
+        }
         .onAppear { entrance.value = true }
     }
 
@@ -72,11 +82,12 @@ struct RadialView: View {
         .disabled(state.loading)
         .accessibilityLabel("\(index + 1). \(state.copiesOnly ? "Copy" : "Paste") \(item.displayTitle)")
         .accessibilityAddTraits(selected ? [.isSelected] : [])
-        .scaleEffect(selected && !reduceMotion ? (count == 1 ? 1.248 : RadialGeometry.hoverScale) : 1,
-                     anchor: UnitPoint(x: bounds.midX / wheelSize, y: bounds.midY / wheelSize))
-        .shadow(color: selected ? .black.opacity(0.26) : .clear, radius: 13, y: 3)
+        // Scaling from the shared wheel center preserves the wedge's boundary
+        // rays. It grows outward inside its own sector, never over a neighbor.
+        .scaleEffect(selected && !reduceMotion ? (count == 1 ? RadialGeometry.singleItemHoverScale : RadialGeometry.hoverScale) : 1,
+                     anchor: .center)
         .zIndex(selected ? 2 : 0)
-        .position(x: 300, y: 300)
+        .position(x: RadialGeometry.wheelCenterX, y: RadialGeometry.wheelCenterY)
         .transition(reduceMotion ? .identity : .opacity)
     }
 

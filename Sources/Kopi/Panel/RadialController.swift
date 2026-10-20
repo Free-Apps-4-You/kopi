@@ -6,6 +6,7 @@ import KopiCore
 final class RadialState: ObservableObject {
     @Published var items: [ClipboardItemSummary] = []
     @Published var selected: Int?
+    @Published var controlsY = RadialGeometry.dockCenterY
     @Published var page = 0
     @Published var totalCount = 0
     @Published var loading = false
@@ -75,20 +76,24 @@ final class RadialController {
         state.totalCount = 0
         state.items = []
         state.selected = nil
+        state.controlsY = RadialGeometry.dockCenterY
         state.presented = false
         let pointer = NSEvent.mouseLocation
         let screen = NSScreen.screens.first { $0.frame.contains(pointer) } ?? NSScreen.main
         let bounds = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1000, height: 800)
-        let size: CGFloat = 600
-        center = NSPoint(x: min(max(pointer.x, bounds.minX + size / 2), bounds.maxX - size / 2),
-                         y: min(max(pointer.y, bounds.minY + size / 2), bounds.maxY - size / 2))
+        let width = CGFloat(RadialGeometry.windowWidth)
+        let height = CGFloat(RadialGeometry.windowHeight)
+        let above = CGFloat(RadialGeometry.wheelCenterY)
+        let below = height - above
+        center = NSPoint(x: min(max(pointer.x, bounds.minX + width / 2), bounds.maxX - width / 2),
+                         y: min(max(pointer.y, bounds.minY + below), bounds.maxY - above))
         let window = self.window ?? KopiPanel.make()
         self.window = window
         window.contentView = RadialWindowContent(rootView: RadialView(state: state, previews: previews,
             choose: { [weak self] index in self?.finish(commit: true, chosen: index) },
             page: { [weak self] delta in self?.switchPage(delta) },
             cancel: { [weak self] in self?.finish(commit: false) }))
-        window.setFrame(NSRect(x: center.x - size / 2, y: center.y - size / 2, width: size, height: size), display: true)
+        window.setFrame(NSRect(x: center.x - width / 2, y: center.y - below, width: width, height: height), display: true)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
         activationPoint = pointer
@@ -110,7 +115,9 @@ final class RadialController {
                 let pointer = NSEvent.mouseLocation
                 let x = pointer.x - self.center.x
                 let y = pointer.y - self.center.y
-                let inDock = abs(x) < 180 && y < -228 && y > -300
+                let dockTop = CGFloat(self.state.controlsY - RadialGeometry.wheelCenterY - 36)
+                let dockBottom = CGFloat(RadialGeometry.windowHeight - RadialGeometry.wheelCenterY)
+                let inDock = abs(x) < 180 && y < -dockTop && y > -dockBottom
                 let inCancel = hypot(x, y) < RadialGeometry.cancelRadius
                 if hypot(x, y) > RadialGeometry.outerRadius * RadialGeometry.hoverScale + 1 && !inDock && !inCancel {
                     self.finish(commit: false); return nil
@@ -161,7 +168,8 @@ final class RadialController {
         let x = pointer.x - center.x
         let y = pointer.y - center.y
         let isAtOrigin = hypot(pointer.x - activationPoint.x, pointer.y - activationPoint.y) < 12
-        let selection = isAtOrigin || y < -234 ? nil : RadialSelection.index(x: x, y: y, count: state.items.count, previous: state.selected)
+        let controlsBoundary = CGFloat(state.controlsY - RadialGeometry.wheelCenterY - 36)
+        let selection = isAtOrigin || y < -controlsBoundary ? nil : RadialSelection.index(x: x, y: y, count: state.items.count, previous: state.selected)
         if state.selected != selection { state.selected = selection }
     }
 

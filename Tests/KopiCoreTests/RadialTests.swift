@@ -149,3 +149,83 @@ struct RadialContentTests {
         #expect(Set(top.map(\.width)).count > 2)
     }
 }
+
+@Suite("Radial outward magnification")
+struct RadialMagnificationTests {
+    @Test func focusedSliceNeverCoversItsUnchangedNeighbors() {
+        let radius = RadialGeometry.outerRadius
+        let rect = CGRect(x: 0, y: 0, width: radius * 2, height: radius * 2)
+        for count in 1...8 {
+            let original = (0..<count).map { RadialSegment(index: $0, count: count).path(in: rect) }
+            for focused in 0..<count {
+                let maximum = count == 1 ? RadialGeometry.singleItemHoverScale : RadialGeometry.hoverScale
+                for progress in [0.0, 0.2, 0.5, 0.8, 1] {
+                    let scale = 1 + (maximum - 1) * progress
+                    let transform = CGAffineTransform(a: scale, b: 0, c: 0, d: scale,
+                                                      tx: radius * (1 - scale), ty: radius * (1 - scale))
+                    let enlarged = original[focused].applying(transform)
+                    for index in 0..<count where index != focused {
+                        let neighbor = original[index]
+                        // Probe all the way through and beyond both slices, not
+                        // just the original ring's middle radius.
+                        for degrees in stride(from: 0.731, to: 360.0, by: 3.0) {
+                            let angle = degrees * Double.pi / 180
+                            for distance in [49.0, 60, 85, 150, 210, 230, 265, 278] {
+                                let point = CGPoint(x: radius + sin(angle) * distance,
+                                                    y: radius - cos(angle) * distance)
+                                #expect(!(enlarged.contains(point) && neighbor.contains(point)),
+                                        "count \(count), focused \(focused), neighbor \(index), progress \(progress)")
+                            }
+                        }
+                    }
+                    #expect(!enlarged.contains(CGPoint(x: radius, y: radius)))
+                }
+            }
+        }
+    }
+
+    @Test func transferringFocusKeepsEverySliceSeparate() {
+        let radius = RadialGeometry.outerRadius
+        let rect = CGRect(x: 0, y: 0, width: radius * 2, height: radius * 2)
+        for count in 2...8 {
+            for previous in 0..<count {
+                let next = (previous + 1) % count
+                for progress in [0.0, 0.2, 0.5, 0.8, 1] {
+                    let paths = (0..<count).map { index in
+                        let weight = index == previous ? 1 - progress : (index == next ? progress : 0)
+                        let scale = 1 + (RadialGeometry.hoverScale - 1) * weight
+                        let transform = CGAffineTransform(a: scale, b: 0, c: 0, d: scale,
+                                                          tx: radius * (1 - scale), ty: radius * (1 - scale))
+                        return RadialSegment(index: index, count: count).path(in: rect).applying(transform)
+                    }
+                    for degrees in stride(from: 0.731, to: 360.0, by: 5.0) {
+                        let angle = degrees * Double.pi / 180
+                        for distance in [55.0, 80, 150, 210, 260] {
+                            let point = CGPoint(x: radius + sin(angle) * distance,
+                                                y: radius - cos(angle) * distance)
+                            #expect(paths.filter { $0.contains(point) }.count <= 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test func expandedWheelAndControlsFitWithoutColliding() {
+        let edge = RadialGeometry.outerRadius * RadialGeometry.hoverScale
+        #expect(RadialGeometry.wheelCenterX - edge >= 0)
+        #expect(RadialGeometry.wheelCenterX + edge <= RadialGeometry.windowWidth)
+        #expect(RadialGeometry.wheelCenterY - edge >= 0)
+        for count in 1...8 {
+            for focused in 0..<count {
+                let dock = RadialGeometry.dockY(focused: focused, count: count)
+                #expect(dock >= RadialGeometry.dockCenterY)
+                #expect(dock + 32 <= RadialGeometry.windowHeight)
+                #expect(RadialGeometry.dockY(focused: focused, count: count, reduceMotion: true) == RadialGeometry.dockCenterY)
+            }
+        }
+        let lowerDock = RadialGeometry.dockY(focused: 4, count: 8)
+        #expect(RadialGeometry.wheelCenterY + edge + 12 < lowerDock - 32)
+        #expect(RadialGeometry.dockY(focused: 0, count: 8) == RadialGeometry.dockCenterY)
+    }
+}
