@@ -17,6 +17,10 @@ jobs:
   test-and-build:
     runs-on: macos-15
     timeout-minutes: 20
+    env:
+      # The runner defaults to Xcode 16.4 / Swift 6.1, which crashes in IRGen
+      # for actor-isolated SwiftUI bindings. Select the supported toolchain.
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
       - name: Show Swift toolchain

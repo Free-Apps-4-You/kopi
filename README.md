@@ -28,7 +28,7 @@ so building Copily does not need Xcode; only regenerating it does
 
 All commands run from the project root.
 
-GitHub Actions runs the serial regression suite, isolated storage self-check,
+GitHub Actions uses Xcode 26.3 and runs the serial regression suite, isolated storage self-check,
 release app build, signature verification, and DMG packaging on macOS for pushes
 to `main` and pull requests. Each successful run provides a `Copily-macOS`
 artifact containing the disk image and SHA-256 checksum. Build outputs and local

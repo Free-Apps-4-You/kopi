@@ -28,7 +28,7 @@ struct NewItemComposerView: View {
                                         .font(.system(size: 11)).foregroundStyle(.secondary)
                                 }
                             }
-                            Picker("Item type", selection: Binding(get: { model.newItemDraft?.mode ?? .text }, set: model.selectNewItemMode)) {
+                            Picker("Item type", selection: Binding(get: { model.newItemDraft?.mode ?? .text }, set: { model.selectNewItemMode($0) })) {
                                 ForEach(NewItemDraft.Mode.allCases) { mode in
                                     Label(mode.title, systemImage: mode.symbol).tag(mode)
                                 }
@@ -36,7 +36,7 @@ struct NewItemComposerView: View {
                             .pickerStyle(.segmented)
                             ScrollView {
                                 VStack(alignment: .leading, spacing: 12) {
-                                    TextField("Optional label", text: Binding(get: { model.newItemDraft?.label ?? "" }, set: model.updateNewItemLabel))
+                                    TextField("Optional label", text: Binding(get: { model.newItemDraft?.label ?? "" }, set: { model.updateNewItemLabel($0) }))
                                         .textFieldStyle(.plain).font(.system(size: 12))
                                         .focused($focusedField, equals: .label)
                                         .padding(.horizontal, 11).padding(.vertical, 9)
@@ -155,6 +155,6 @@ struct NewItemComposerView: View {
     }
 
     private var textBinding: Binding<String> {
-        Binding(get: { model.newItemDraft?.text ?? "" }, set: model.updateNewItemText)
+        Binding(get: { model.newItemDraft?.text ?? "" }, set: { model.updateNewItemText($0) })
     }
 }
