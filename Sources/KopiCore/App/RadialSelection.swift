@@ -1,18 +1,25 @@
 import Foundation
 
-/// Evenly spaced clockwise directions starting at the top, with a safe center cancel zone.
+/// Geometry shared by the wheel and its pointer hit regions.
 public enum RadialGeometry {
     public static let outerRadius = 220.0
     public static let cancelRadius = 48.0
     public static let hoverScale = 1.272
 }
 
+/// Clockwise direction selection with a safe center and boundary hysteresis.
 public enum RadialSelection {
-    public static func index(x: Double, y: Double, count: Int, previous: Int? = nil) -> Int? {
+    public static func index(x: Double, y: Double, count: Int, previous: Int? = nil, magnified: Bool = false) -> Int? {
         guard count > 0, hypot(x, y) >= RadialGeometry.cancelRadius else { return nil }
         let slots = min(count, 8)
         let step = 2 * Double.pi / Double(slots)
         let direction = atan2(x, y)
+        if magnified {
+            let slices = RadialWheelLayout(count: slots, focused: previous).slices
+            if let previous, slices.indices.contains(previous),
+               slices[previous].contains(angle: direction, tolerance: .pi / 36) { return previous }
+            return slices.first { $0.contains(angle: direction) }?.index
+        }
         if let previous, previous >= 0, previous < slots {
             let difference = atan2(sin(direction - Double(previous) * step), cos(direction - Double(previous) * step))
             if abs(difference) < step / 2 + .pi / 36 { return previous }

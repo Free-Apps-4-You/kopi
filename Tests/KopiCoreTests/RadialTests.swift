@@ -149,3 +149,89 @@ struct RadialContentTests {
         #expect(Set(top.map(\.width)).count > 2)
     }
 }
+
+@Suite("Radial focus redistribution")
+struct RadialRedistributionTests {
+    @Test func focusedArcGrowsWhileNeighborsKeepACompletePartition() {
+        for count in 1...8 {
+            for focused in 0..<count {
+                let slices = RadialWheelLayout(count: count, focused: focused).slices
+                let step = 2 * Double.pi / Double(count)
+                #expect(abs(slices.reduce(0) { $0 + $1.sweep } - 2 * .pi) < 1e-10)
+                #expect(abs(slices[focused].centerAngle - Double(focused) * step) < 1e-10)
+                if count > 1 {
+                    #expect(slices[focused].sweep > step)
+                    #expect(slices.filter { $0.index != focused }.allSatisfy { $0.sweep < step && $0.sweep > 0 })
+                }
+                for pair in zip(slices, slices.dropFirst()) {
+                    #expect(abs(pair.0.startAngle + pair.0.sweep - pair.1.startAngle) < 1e-10)
+                }
+            }
+        }
+    }
+
+    @Test func animatedPartitionsNeverOverlapOrLeaveGaps() {
+        let frame = CGRect(x: 0, y: 0, width: 440, height: 440)
+        for count in 1...8 {
+            // Include entering focus, moving clockwise, and wrapping 8 -> 1.
+            for from in -1..<count {
+                let to = (from + 1) % count
+                for progress in [0.0, 0.2, 0.5, 0.8, 1] {
+                    var weights = Array(repeating: 0.0, count: count)
+                    if from >= 0 { weights[from] += 1 - progress }
+                    weights[to] += progress
+                    let slices = RadialWheelLayout(count: count, emphasis: weights).slices
+                    let paths = slices.map { RadialSegment(slice: $0).path(in: frame) }
+                    #expect(paths.allSatisfy { !$0.contains(CGPoint(x: 220, y: 220)) })
+                    for degrees in stride(from: 0.731, to: 360.0, by: 11.0) {
+                        let angle = degrees * Double.pi / 180
+                        for radius in [55.0, 150, 210] {
+                            let point = CGPoint(x: 220 + sin(angle) * radius, y: 220 - cos(angle) * radius)
+                            #expect(paths.filter { $0.contains(point) }.count == 1, "count \(count), from \(from), progress \(progress), angle \(degrees)")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test func hitTestingFollowsTheExpandedArcsAndRetainsTheCancelZone() {
+        for count in 2...8 {
+            for focused in 0..<count {
+                let slices = RadialWheelLayout(count: count, focused: focused).slices
+                for slice in slices {
+                    #expect(RadialSelection.index(x: sin(slice.centerAngle) * 150, y: cos(slice.centerAngle) * 150,
+                        count: count, previous: focused, magnified: true) == slice.index)
+                }
+                #expect(RadialSelection.index(x: 0, y: 47, count: count, previous: focused, magnified: true) == nil)
+            }
+        }
+    }
+
+    @Test func imagesAndMagnifiedTextStayInsideRedistributedSlices() {
+        let frame = CGRect(x: 0, y: 0, width: 440, height: 440)
+        let text = String(repeating: "A useful idea worth keeping. ", count: 12)
+        for count in 1...8 {
+            for focused in 0..<count {
+                for slice in RadialWheelLayout(count: count, focused: focused).slices {
+                    let layout = RadialContentLayout(slice: slice)
+                    let path = RadialSegment(slice: slice).path(in: frame)
+                    var rects = [0.4, 1, 2.4].map { layout.imageRect(aspectRatio: $0) }
+                    let scale = slice.index == focused ? RadialGeometry.hoverScale : 1
+                    let lines = RadialTextFlow.lines(text, layout: layout, color: .black, scale: scale)
+                    #expect(!lines.isEmpty)
+                    #expect(lines.allSatisfy { $0.width <= $0.rect.width + 0.5 })
+                    rects += lines.map(\.rect)
+                    for rect in rects {
+                        #expect(rect.width > 0 && rect.height > 0)
+                        for x in [rect.minX, rect.midX, rect.maxX] {
+                            for y in [rect.minY, rect.midY, rect.maxY] {
+                                #expect(path.contains(CGPoint(x: x, y: y)))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
