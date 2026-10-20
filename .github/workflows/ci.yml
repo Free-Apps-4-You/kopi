@@ -111,7 +111,8 @@ jobs:
           ---
 
           EOF
-          git for-each-ref --format='%(contents)' "refs/tags/$RELEASE_TAG" >> release-notes.md
+          tag_object=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq .object.sha)
+          gh api "repos/$GH_REPO/git/tags/$tag_object" --jq .message >> release-notes.md
           gh release create "$RELEASE_TAG" \
             "dist/Kopi-Intel-Mac.dmg#Kopi-Intel-Mac.dmg — Intel processor Macs, macOS 14+" \
             "dist/Kopi-Apple-Silicon-Mac.dmg#Kopi-Apple-Silicon-Mac.dmg — M1 and later Macs, macOS 14+" \
