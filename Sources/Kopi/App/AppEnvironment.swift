@@ -59,7 +59,6 @@ final class AppEnvironment {
         // Carry a pre-rename installation forward before any store opens: the whole
         // Application Support folder moves once. Recovering an archived vault key
         // is an explicit Passwords > Migrate action; launch never reads the Keychain.
-        try ApplicationDataMigration.migrateSupportDirectoryIfNeeded()
 
         let settings = KopiSettingsStore()
         let assetStore = try AssetStore(rootDirectory: try AssetStore.defaultRootDirectory())

@@ -6,58 +6,6 @@ import Testing
 
 @Suite("History store persistence")
 struct HistoryStorePersistenceTests {
-    @Test("The app rename upgrades an existing history database without losing metadata or cards")
-    func upgradesMetadataFromTheEarlierAppName() async throws {
-        let workspace = try TempWorkspace()
-        let session = try await workspace.store.beginSession()
-        _ = try await workspace.store.setRetention(.thirtyDays)
-        let pinned = try await workspace.store.insert(textInsertion("Keep this pinned history"))
-        _ = try await workspace.store.setPinned(true, for: pinned.itemID)
-        _ = try await workspace.store.edit(.text("Edited before rename"), for: pinned.itemID)
-        let collected = try await workspace.store.insert(textInsertion("Keep this collection", destination: .collection))
-
-        let database = try DatabaseQueue(path: workspace.databasePath)
-        try await database.write { db in
-            // Reproduce the database left by the app before its rename.
-            try db.execute(sql: "ALTER TABLE kopi_metadata RENAME TO velpy_metadata")
-            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier IN ('\(LegacyAppIdentity.metadataMigration)', 'v4_kopi_metadata')")
-            try db.execute(sql: "INSERT INTO velpy_metadata(key, value) VALUES ('upgrade_marker', 'preserved')")
-        }
-
-        let relaunched = try workspace.reopenStore()
-        #expect(try await relaunched.sessionID() == session.sessionID)
-        #expect(try await relaunched.retention() == .thirtyDays)
-        let detail = try #require(await relaunched.detail(for: pinned.itemID))
-        #expect(detail.summary.isPinned)
-        #expect(detail.summary.isEdited)
-        #expect(detail.plainText == "Edited before rename")
-        #expect(try await relaunched.page(HistoryQuery(scope: .collection)).itemIDs == [collected.itemID])
-        #expect(try await relaunched.page(HistoryQuery(text: "Edited before rename")).itemIDs == [pinned.itemID])
-        let marker = try await database.read { db in
-            try String.fetchOne(db, sql: "SELECT value FROM kopi_metadata WHERE key = 'upgrade_marker'")
-        }
-        #expect(marker == "preserved")
-        let reopenedAgain = try workspace.reopenStore()
-        #expect(try await reopenedAgain.sessionID() == session.sessionID)
-        #expect(try await reopenedAgain.detail(for: collected.itemID) != nil)
-    }
-
-    @Test("History created by an early Kopi build still opens after the metadata migration")
-    func acceptsAlreadyRenamedMetadata() async throws {
-        let workspace = try TempWorkspace()
-        let session = try await workspace.store.beginSession()
-        let inserted = try await workspace.store.insert(textInsertion("Already using the new name"))
-        let database = try DatabaseQueue(path: workspace.databasePath)
-        try await database.write { db in
-            try db.execute(sql: "ALTER TABLE kopi_metadata RENAME TO \(LegacyAppIdentity.metadataTable)")
-            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v4_kopi_metadata'")
-        }
-
-        let relaunched = try workspace.reopenStore()
-        #expect(try await relaunched.sessionID() == session.sessionID)
-        #expect(try await relaunched.detail(for: inserted.itemID)?.plainText == "Already using the new name")
-    }
-
     @Test("Pinned and edited content survives a relaunch after a force quit")
     func pinnedAndEditedContentSurvivesRelaunch() async throws {
         let workspace = try TempWorkspace()

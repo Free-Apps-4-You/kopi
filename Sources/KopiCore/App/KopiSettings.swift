@@ -143,85 +143,17 @@ public final class KopiSettingsStore: ObservableObject {
     /// command line build runs without an application bundle and therefore has no
     /// bundle identifier to key preferences by.
     public static let suiteName = "com.kopi.Kopi"
-    /// Defaults suite written by earlier builds.
-    ///
-    /// This is an archived suite name: its values are read once, when the current
-    /// suite has no settings yet, and never written again.
-    public static let archivedSuiteName = LegacyAppIdentity.settingsSuiteName
-    public static let archivedSuiteNames = [archivedSuiteName, "com.velpy.Velpy"]
     public static let storageKey = "kopi.settings"
-    /// Set once the archived suite has been considered, so Reset to Defaults is not
-    /// undone by the next launch importing the old values again.
-    static let migrationKey = "kopi.settings.migrationCompleted"
 
     @Published public private(set) var settings: KopiSettings
 
     private let defaults: UserDefaults
 
-    /// - Parameters:
-    ///   - defaults: Storage to use. Tests pass a temporary suite; the application
-    ///     passes nothing and uses ``suiteName``.
-    ///   - archivedDefaults: Earlier suite to copy settings from. The application
-    ///     passes nothing and the archived suite is used; tests inject a temporary
-    ///     one. A store built with an injected `defaults` never reads the real
-    ///     archive unless it is passed explicitly.
-    public init(defaults: UserDefaults? = nil, archivedDefaults: UserDefaults? = nil) {
-        let resolved = defaults ?? UserDefaults(suiteName: KopiSettingsStore.suiteName) ?? .standard
-        if let archivedDefaults {
-            Self.copyArchivedSettingsIfNeeded(from: archivedDefaults, to: resolved)
-        } else if defaults == nil {
-            for suite in Self.archivedSuiteNames {
-                if let archived = UserDefaults(suiteName: suite) {
-                    Self.copyArchivedSettingsIfNeeded(from: archived, to: resolved)
-                }
-            }
-        }
+    /// Tests can inject an isolated preferences suite.
+    public init(defaults: UserDefaults? = nil) {
+        let resolved = defaults ?? UserDefaults(suiteName: Self.suiteName) ?? .standard
         self.defaults = resolved
         self.settings = Self.load(from: resolved)
-    }
-
-    /// Copies the settings blob an earlier build wrote, once.
-    ///
-    /// A value already stored in the current suite always wins, which makes a
-    /// second launch — and a launch after the user changed a setting — a no-op.
-    static func copyArchivedSettingsIfNeeded(from archived: UserDefaults, to current: UserDefaults) {
-        guard current.data(forKey: storageKey) == nil,
-              !current.bool(forKey: migrationKey)
-        else { return }
-        // A reset in the previous app must not reimport an even older preference.
-        if archived.data(forKey: LegacyAppIdentity.settingsStorageKey) == nil,
-           archived.bool(forKey: LegacyAppIdentity.settingsMigrationKey) {
-            current.set(try? JSONEncoder().encode(KopiSettings()), forKey: storageKey)
-            current.set(true, forKey: migrationKey)
-            return
-        }
-        guard let blob = archivedSettingsBlob(in: archived) else { return }
-        current.set(blob, forKey: storageKey)
-        current.set(true, forKey: migrationKey)
-    }
-
-    /// Finds the blob in the earlier suite's values.
-    ///
-    /// Earlier builds stored the blob under a preference name that carried the old
-    /// application name, so the archive is recognised by its shape: a data value
-    /// under a settings key that decodes as settings and is not just the defaults.
-    /// Undecodable values, values that carry no choice, and the unrelated
-    /// system-wide defaults a `UserDefaults` view also reports are ignored.
-    private static func archivedSettingsBlob(in archived: UserDefaults) -> Data? {
-        for key in [storageKey, LegacyAppIdentity.settingsStorageKey, "velpy.settings"] {
-            if let data = archived.data(forKey: key),
-               (try? JSONDecoder().decode(KopiSettings.self, from: data)) != nil { return data }
-        }
-        let defaults = KopiSettings()
-        for (key, value) in archived.dictionaryRepresentation() {
-            guard key.hasSuffix(".settings") else { continue }
-            guard let data = value as? Data,
-                  let decoded = try? JSONDecoder().decode(KopiSettings.self, from: data),
-                  decoded != defaults
-            else { continue }
-            return data
-        }
-        return nil
     }
 
     /// Applies a change and persists the result.
@@ -240,8 +172,6 @@ public final class KopiSettingsStore: ObservableObject {
 
     public func reset() {
         defaults.removeObject(forKey: Self.storageKey)
-        // Keep the migration from restoring values the user just discarded.
-        defaults.set(true, forKey: Self.migrationKey)
         settings = KopiSettings()
     }
 

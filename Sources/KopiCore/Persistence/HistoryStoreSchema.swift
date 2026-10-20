@@ -11,17 +11,6 @@ enum HistoryStoreSchema {
         migrator.registerMigration("v2") { db in
             try db.execute(sql: schemaV2)
         }
-        // Historical migration identifiers and table names must remain readable.
-        migrator.registerMigration(LegacyAppIdentity.metadataMigration) { db in
-            if try !db.tableExists(LegacyAppIdentity.metadataTable), try db.tableExists("velpy_metadata") {
-                try db.execute(sql: "ALTER TABLE velpy_metadata RENAME TO \(LegacyAppIdentity.metadataTable)")
-            }
-        }
-        migrator.registerMigration("v4_kopi_metadata") { db in
-            if try !db.tableExists("kopi_metadata"), try db.tableExists(LegacyAppIdentity.metadataTable) {
-                try db.execute(sql: "ALTER TABLE \(LegacyAppIdentity.metadataTable) RENAME TO kopi_metadata")
-            }
-        }
         try migrator.migrate(writer)
     }
 
@@ -29,7 +18,7 @@ enum HistoryStoreSchema {
     /// FTS5 index can address items by rowid while `clip_item.id` stays the stable
     /// public identifier.
     private static let schemaV1 = """
-    CREATE TABLE velpy_metadata(
+    CREATE TABLE kopi_metadata(
         key TEXT PRIMARY KEY NOT NULL,
         value TEXT NOT NULL
     );

@@ -5,12 +5,6 @@ import Testing
 
 @Suite("Clipboard workflow additions")
 struct ClipboardInspiredFeaturesTests {
-    @Test("Previous app identities are displayed and filtered as Kopi")
-    func previousBrandIdentity() {
-        #expect(SourceAppInfo.canonicalBundleIdentifier(LegacyAppIdentity.bundleIdentifier) == "com.kopi.app")
-        #expect(SourceAppInfo(bundleIdentifier: LegacyAppIdentity.bundleIdentifier, name: LegacyAppIdentity.supportDirectoryName).kopiDisplayName == "Kopi")
-    }
-
     @Test("Colors recognize explicit HEX and RGB formats without guessing ordinary text")
     func explicitColors() throws {
         #expect(ClipboardColor.parse(" #abc\n")?.hexString == "#AABBCC")
@@ -62,19 +56,19 @@ struct ClipboardInspiredFeaturesTests {
         #expect(escaped.totalCount == 0)
     }
 
-    @Test("The app menu covers all history and groups earlier Kopi identities")
-    func sourceAppNamesAndRename() async throws {
+    @Test("The app menu groups history by source application")
+    func sourceAppNames() async throws {
         let workspace = try TempWorkspace()
-        for (index, identifier) in ["com.velpy.app", "com.kopi.app", "com.example.other"].enumerated() {
+        for (index, identifier) in ["com.kopi.app", "com.kopi.app", "com.example.other"].enumerated() {
             var insertion = textInsertion("Source \(index)")
-            insertion.sourceApp = SourceAppInfo(bundleIdentifier: identifier, name: index == 1 ? "Kopi" : "Velpy")
+            insertion.sourceApp = SourceAppInfo(bundleIdentifier: identifier, name: index < 2 ? "Kopi" : "Other")
             _ = try await workspace.store.insert(insertion)
         }
         let apps = try await workspace.store.sourceApplications()
         #expect(apps.count == 2)
         #expect(apps.first { $0.bundleIdentifier == "com.kopi.app" }?.name == "Kopi")
-        #expect(apps.first { $0.bundleIdentifier == "com.example.other" }?.name == "Velpy")
-        for identifier in ["com.velpy.app", "com.kopi.app"] {
+        #expect(apps.first { $0.bundleIdentifier == "com.example.other" }?.name == "Other")
+        for identifier in ["com.kopi.app"] {
             let page = try await workspace.store.page(HistoryQuery(sourceAppBundleIdentifier: identifier))
             #expect(page.totalCount == 2)
         }
