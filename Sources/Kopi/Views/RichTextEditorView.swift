@@ -289,8 +289,9 @@ final class FormattingTextView: NSTextView {
             insertFormatted(NSAttributedString(string: "", attributes: attributes), replacementRange: range)
             typingAttributes = attributes
         } else {
-            super.insertNewline(sender)
-            insertFormatted(NSAttributedString(string: prefix, attributes: typingAttributes), replacementRange: selectedRange())
+            // Insert once: older macOS text views also continue lists in super,
+            // which would duplicate our marker before this insertion.
+            insertFormatted(NSAttributedString(string: "\n" + prefix, attributes: typingAttributes), replacementRange: selectedRange())
         }
     }
 
