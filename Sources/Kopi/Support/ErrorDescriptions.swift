@@ -40,6 +40,7 @@ func userFacingDescription(_ error: any Error) -> String {
     case let error as CaptureProcessorError:
         switch error {
         case .unsupportedContent: return "The clipboard holds nothing Kopi can store."
+        case .imageDataUnavailable: return "This image is a private app file. Copy the image itself to capture a preview."
         }
     case let error as EditorValidation:
         switch error {

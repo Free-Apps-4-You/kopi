@@ -100,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settings: environment.settings
         )
         panelController.prepare()
-        radialController = RadialController(store: environment.store, service: environment.service, panel: panelController)
+        radialController = RadialController(store: environment.store, service: environment.service, previews: environment.previews, panel: panelController)
         environment.showRadial = { [weak radialController] in radialController?.show() }
         let settingsWindowController = SettingsWindowController(environment: environment)
         let hotKey = GlobalHotKey()

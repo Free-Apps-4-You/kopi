@@ -668,3 +668,86 @@ extension HistoryStore {
         var relativePaths: [String] = []
     }
 }
+
+extension HistoryStore {
+    /// Repairs earlier image-file captures without changing source files, pin state,
+    /// labels, collection membership or retention clocks. Only already-owned assets
+    /// are read; unowned external originals are never opened during startup.
+    @discardableResult
+    public func repairImageFileCards(using processor: CaptureProcessor) async throws -> Int {
+        let ids = try await pool.read { db in
+            try String.fetchAll(db, sql: "SELECT id FROM clip_item WHERE kind = 'files'")
+        }
+        let knownImages = try await pool.read { db -> [ClipboardRepresentation] in
+            let imageIDs = try String.fetchAll(db, sql: "SELECT id FROM clip_item WHERE kind = 'image'")
+            return try imageIDs.flatMap { rawID in
+                try Self.representations(db, itemID: ClipboardItemID(rawValue: rawID))
+                    .filter { $0.kind.isImage && $0.asset != nil }
+            }
+        }
+        var repaired = 0
+        for rawID in ids {
+            let id = ClipboardItemID(rawValue: rawID)
+            guard let original = try await detail(for: id), original.fileReferences.count == 1,
+                  let file = original.fileReferences.first, !file.isDirectory else { continue }
+            let digestComponents = Set(URL(fileURLWithPath: file.path).pathComponents.filter {
+                $0.count == 64 && $0.allSatisfy { "0123456789abcdef".contains($0) }
+            })
+            var image: ClipboardItemInsertion
+            if let stored = knownImages.first(where: { digestComponents.contains($0.contentHash) }) {
+                // The export path contains the exact digest of bytes already owned
+                // by Kopi. Recover from our asset, never the other app's directory.
+                image = ClipboardItemInsertion(kind: .image, representations: [stored],
+                    sourceApp: original.summary.sourceApp, origin: .kopi(itemID: id, changeCount: 0),
+                    capturedAt: original.summary.createdAt)
+            } else if let snapshotAsset = file.snapshot {
+                let url = assetStore.fileURL(for: snapshotAsset)
+                let snapshot = PasteboardSnapshot(changeCount: 0, items: [PasteboardItemSnapshot(flavours: [
+                    PasteboardFlavour(type: ClipboardRepresentationKind.fileURL.pasteboardType, string: url.absoluteString)
+                ])])
+                guard CaptureProcessor.kind(of: snapshot) == .image,
+                      let restored = try? await processor.insertion(from: snapshot, sourceApp: original.summary.sourceApp,
+                        origin: .kopi(itemID: id, changeCount: 0), capturedAt: original.summary.createdAt)
+                else { continue }
+                image = restored
+            } else {
+                // Automatic repair must never open old external file references.
+                continue
+            }
+            image.label = original.summary.label
+            let prepared = image
+            let changed = try await pool.write { db -> (Bool, AssetGarbageCollection) in
+                var garbage = AssetGarbageCollection()
+                guard let current = try Self.summaryRow(db, id: id), current.itemKind == .files,
+                      current.summary().fingerprint == original.summary.fingerprint else { return (false, garbage) }
+                let duplicate = try String.fetchOne(db, sql: "SELECT id FROM clip_item WHERE kind = 'image' AND fingerprint = ? AND is_edited = 0 ORDER BY is_collection, is_pinned, (label IS NOT NULL), row_id LIMIT 1",
+                                                   arguments: [prepared.fingerprint.rawValue])
+                if let duplicate, !original.summary.isPinned, !original.summary.isCollection,
+                   !original.summary.isEdited, original.summary.label == nil {
+                    try db.execute(sql: "UPDATE clip_item SET last_copied_at = MAX(last_copied_at, ?), updated_at = MAX(updated_at, ?) WHERE id = ?",
+                        arguments: [original.summary.lastCopiedAt.timeIntervalSinceReferenceDate,
+                                    original.summary.updatedAt.timeIntervalSinceReferenceDate, duplicate])
+                    garbage = try Self.deleteItems(db, itemIDs: [id])
+                } else {
+                    try db.execute(sql: "DELETE FROM clip_asset_reference WHERE item_id = ?", arguments: [rawID])
+                    try db.execute(sql: "DELETE FROM clip_representation WHERE item_id = ?", arguments: [rawID])
+                    try db.execute(sql: "DELETE FROM clip_file WHERE item_id = ?", arguments: [rawID])
+                    try Self.writeChildren(db, itemID: id, representations: prepared.representations, fileReferences: [])
+                    let text = prepared.composedSearchText
+                    let folded = ClipboardSearchText.folded(text)
+                    try db.execute(sql: "UPDATE clip_item SET kind = 'image', excerpt = ?, search_text = ?, search_text_folded = ?, fingerprint = ?, file_names_json = '[]', primary_url = NULL WHERE id = ?",
+                        arguments: [prepared.excerpt, text, folded, prepared.fingerprint.rawValue, rawID])
+                    if let rowID = try Int64.fetchOne(db, sql: "SELECT row_id FROM clip_item WHERE id = ?", arguments: [rawID]) {
+                        try Self.indexSearchText(db, rowID: rowID, foldedText: folded)
+                    }
+                }
+                return (true, garbage)
+            }
+            await removeAssetFiles(changed.1)
+            if changed.0 { repaired += 1 }
+        }
+        let garbage = try await pool.write { db in try Self.collectUnreferencedAssets(db) }
+        await removeAssetFiles(garbage)
+        return repaired
+    }
+}

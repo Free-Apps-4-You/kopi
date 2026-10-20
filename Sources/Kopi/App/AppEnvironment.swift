@@ -121,6 +121,8 @@ final class AppEnvironment {
             if session.recoveredFromInterruptedExit {
                 startupNotice = "Kopi closed unexpectedly last time. History rules were applied again."
             }
+            do { _ = try await store.repairImageFileCards(using: processor) }
+            catch { startupNotice = "Some earlier image files could not be restored. New copies will still be captured." }
             await service.setExcludedApplications(settings.settings.exclusion)
             await service.setCapturePaused(settings.settings.isCapturePaused)
             await service.start(captureExistingClipboard: settings.settings.capturesClipboardOnLaunch)

@@ -427,6 +427,7 @@ public actor ClipboardService {
         case let error as CaptureProcessorError:
             switch error {
             case .unsupportedContent: return "the clipboard holds nothing Kopi can store"
+            case .imageDataUnavailable: return "This image is a private app file. Copy the image itself to capture a preview."
             }
         case let error as ClipboardServiceError:
             switch error {

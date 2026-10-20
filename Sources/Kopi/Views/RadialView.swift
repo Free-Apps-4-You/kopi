@@ -4,10 +4,11 @@ import KopiCore
 /// Adjoining annular segments form one wheel around the cancel/preview hub.
 struct RadialView: View {
     @ObservedObject var state: RadialState
+    let previews: PreviewStore
     let choose: (Int) -> Void
-    let ring: (Int) -> Void
     let page: (Int) -> Void
     let cancel: () -> Void
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var entrance = PanelState(false)
 
@@ -17,7 +18,7 @@ struct RadialView: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(KopiTheme.surface)
+            Circle().fill(KopiTheme.surface.opacity(reduceTransparency ? 1 : 0.25))
                 .overlay(Circle().strokeBorder(Color.primary.opacity(0.1)))
                 .shadow(color: .black.opacity(0.2), radius: 20, y: 9)
                 .frame(width: 456, height: 456).position(x: 300, y: 300)
@@ -51,7 +52,7 @@ struct RadialView: View {
         let shape = RadialSegment(index: index, count: count)
         return Button { choose(index) } label: {
             ZStack {
-                shape.fill(selected ? KopiTheme.selectedCardSurface : KopiTheme.cardSurface)
+                shape.fill((selected ? KopiTheme.selectedCardSurface : KopiTheme.cardSurface).opacity(reduceTransparency ? 1 : (selected ? 0.64 : 0.3)))
                 shape.stroke(selected ? KopiTheme.accent.opacity(0.75) : Color.primary.opacity(0.09), lineWidth: selected ? 1.5 : 1)
                 segmentLabel(item, index: index, selected: selected)
                     .position(x: 228 + cos(angle) * 158, y: 228 + sin(angle) * 158)
@@ -72,8 +73,12 @@ struct RadialView: View {
 
     private func segmentLabel(_ item: ClipboardItemSummary, index: Int, selected: Bool) -> some View {
         VStack(spacing: 7) {
-            RadialGlyph(item: item).frame(width: 25, height: 25)
-            Text(item.displayTitle).font(.system(size: 11, weight: selected ? .semibold : .medium))
+            if item.kind == .image {
+                RadialImageThumbnail(item: item, previews: previews).frame(width: 64, height: 40)
+            } else {
+                RadialGlyph(item: item).frame(width: 25, height: 25)
+            }
+            Text(item.kind == .image ? "Image" : item.displayTitle).font(.system(size: 11, weight: selected ? .semibold : .medium))
                 .lineLimit(2).multilineTextAlignment(.center)
                 .frame(width: 96, height: 28)
             HStack(spacing: 4) {
@@ -89,14 +94,19 @@ struct RadialView: View {
         VStack(spacing: 7) {
             HStack(spacing: 5) {
                 Circle().fill(KopiTheme.accent).frame(width: 5, height: 5)
-                Text(state.names[state.ring].uppercased()).font(.system(size: 9, weight: .bold, design: .rounded)).tracking(1.1)
+                Text("RECENT").font(.system(size: 9, weight: .bold, design: .rounded)).tracking(1.1)
             }.foregroundStyle(KopiTheme.accent)
             if state.loading {
                 ProgressView().controlSize(.small).frame(height: 34)
                 Text("Finding your clips…").font(.system(size: 10)).foregroundStyle(.secondary)
             } else if let item = active {
-                Text(String((item.excerpt.isEmpty ? item.displayTitle : item.excerpt).prefix(160))).font(.system(size: 12, weight: .semibold)).lineLimit(3)
-                    .multilineTextAlignment(.center).frame(height: 43)
+                if item.kind == .image {
+                    RadialImageThumbnail(item: item, previews: previews).frame(width: 124, height: 62)
+                } else {
+                    Text(String((item.excerpt.isEmpty ? item.displayTitle : item.excerpt).prefix(160)))
+                        .font(.system(size: 12, weight: .semibold)).lineLimit(3)
+                        .multilineTextAlignment(.center).frame(height: 43)
+                }
                 Text(item.domain ?? item.sourceApp?.displayName ?? item.kind.displayName)
                     .font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(1)
                 Text("Release to \(action)").font(.system(size: 10, weight: .semibold))
@@ -109,7 +119,7 @@ struct RadialView: View {
             }
         }
         .padding(15).frame(width: 166, height: 166)
-        .background(KopiTheme.surface, in: Circle())
+        .background(KopiTheme.surface.opacity(reduceTransparency ? 1 : 0.55), in: Circle())
         .overlay(Circle().strokeBorder(active == nil ? Color.primary.opacity(0.09) : KopiTheme.accent.opacity(0.45)))
         .shadow(color: .black.opacity(0.12), radius: 14, y: 5)
         .allowsHitTesting(false)
@@ -119,16 +129,11 @@ struct RadialView: View {
     private var dock: some View {
         VStack(spacing: 9) {
             HStack(spacing: 4) {
-                ForEach(0..<3) { index in
-                    Button { ring(index) } label: {
-                        Label(state.names[index], systemImage: ["clock", "pin", "tray.full"][index])
-                            .font(.system(size: 10, weight: .semibold))
-                            .padding(.horizontal, 11).padding(.vertical, 8)
-                            .foregroundStyle(state.ring == index ? KopiTheme.accent : .secondary)
-                            .background(state.ring == index ? KopiTheme.accentWash : .clear, in: Capsule())
-                    }.buttonStyle(KopiPressStyle()).accessibilityAddTraits(state.ring == index ? [.isSelected] : [])
-                }
-                Divider().frame(height: 17).padding(.horizontal, 4)
+                Label("Recent", systemImage: "clock")
+                    .font(.system(size: 10, weight: .semibold)).foregroundStyle(KopiTheme.accent)
+                    .padding(.horizontal, 12)
+                Text("\(state.totalCount) clips").font(.system(size: 10)).foregroundStyle(.secondary)
+                Divider().frame(height: 17).padding(.horizontal, 7)
                 Button { page(-1) } label: { Image(systemName: "chevron.left").frame(width: 20, height: 26) }
                     .disabled(state.page == 0 || state.loading).accessibilityLabel("Previous eight cards")
                 Text("\(state.page + 1)/\(state.pageCount)").font(.system(size: 10, weight: .medium, design: .rounded))
@@ -140,7 +145,7 @@ struct RadialView: View {
             .padding(5).background(KopiTheme.surface, in: Capsule())
             .overlay(Capsule().strokeBorder(Color.primary.opacity(0.08)))
             .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
-            Text("\(state.trigger.title)  ·  Scroll rings  ·  ← → more  ·  Esc cancel")
+            Text("\(state.trigger.title)  ·  Scroll / ← → older  ·  Esc cancel")
                 .font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary)
                 .padding(.horizontal, 12).padding(.vertical, 4)
                 .background(KopiTheme.surface, in: Capsule())
@@ -192,5 +197,33 @@ struct RadialSegment: Shape {
         path.addArc(center: center, radius: radius, startAngle: start, endAngle: end, clockwise: false)
         path.closeSubpath()
         return path.subtracting(hole)
+    }
+}
+
+/// Uses the same bounded, asynchronous image cache as the main clipboard grid.
+private struct RadialImageThumbnail: View {
+    let item: ClipboardItemSummary
+    let previews: PreviewStore
+    @ObservedObject private var entry: PreviewStore.Entry
+
+    init(item: ClipboardItemSummary, previews: PreviewStore) {
+        self.item = item
+        self.previews = previews
+        entry = previews.entry(for: item.id)
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.06))
+            if let image = entry.image {
+                Image(decorative: image, scale: 1).resizable().scaledToFit()
+                    .padding(2)
+            } else {
+                Image(systemName: "photo").font(.system(size: 19)).foregroundStyle(.secondary)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .accessibilityLabel("Image preview")
+        .task(id: item.fingerprint) { await previews.load(item, maxPixelSize: 320) }
     }
 }

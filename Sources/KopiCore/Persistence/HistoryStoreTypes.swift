@@ -59,6 +59,7 @@ public enum HistorySearchMode: String, Sendable, Hashable, Codable {
 /// A page request: search text, scope, filters, ordering and pagination.
 public struct HistoryQuery: Sendable, Hashable, Codable {
     public var text: String
+    public var includesCollection: Bool
     public var scope: HistoryScope
     /// Empty means "every kind".
     public var kinds: Set<ClipboardItemKind>
@@ -69,6 +70,7 @@ public struct HistoryQuery: Sendable, Hashable, Codable {
 
     public init(
         text: String = "",
+        includesCollection: Bool = true,
         scope: HistoryScope = .allClipboard,
         kinds: Set<ClipboardItemKind> = [],
         sort: HistorySort = .recentlyCopied,
@@ -76,6 +78,7 @@ public struct HistoryQuery: Sendable, Hashable, Codable {
         sourceAppBundleIdentifier: String? = nil
     ) {
         self.text = text
+        self.includesCollection = includesCollection
         self.scope = scope
         self.kinds = kinds
         self.sort = sort
@@ -86,14 +89,26 @@ public struct HistoryQuery: Sendable, Hashable, Codable {
     /// Query for one of the All / Text / Links / Images / Files filters.
     public init(
         text: String = "",
+        includesCollection: Bool = true,
         scope: HistoryScope = .allClipboard,
         filter: ClipboardFilter,
         sort: HistorySort = .recentlyCopied,
         page: HistoryPage = HistoryPage(),
         sourceAppBundleIdentifier: String? = nil
     ) {
-        self.init(text: text, scope: scope, kinds: filter.kinds, sort: sort, page: page,
+        self.init(text: text, includesCollection: includesCollection, scope: scope, kinds: filter.kinds, sort: sort, page: page,
                   sourceAppBundleIdentifier: sourceAppBundleIdentifier)
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        text = try values.decode(String.self, forKey: .text)
+        includesCollection = try values.decodeIfPresent(Bool.self, forKey: .includesCollection) ?? true
+        scope = try values.decode(HistoryScope.self, forKey: .scope)
+        kinds = try values.decode(Set<ClipboardItemKind>.self, forKey: .kinds)
+        sort = try values.decode(HistorySort.self, forKey: .sort)
+        page = try values.decode(HistoryPage.self, forKey: .page)
+        sourceAppBundleIdentifier = try values.decodeIfPresent(String.self, forKey: .sourceAppBundleIdentifier)
     }
 
     public var searchText: String {

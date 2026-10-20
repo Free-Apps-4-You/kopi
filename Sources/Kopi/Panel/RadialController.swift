@@ -6,7 +6,6 @@ import KopiCore
 final class RadialState: ObservableObject {
     @Published var items: [ClipboardItemSummary] = []
     @Published var selected: Int?
-    @Published var ring = 0
     @Published var page = 0
     @Published var totalCount = 0
     @Published var loading = false
@@ -14,7 +13,6 @@ final class RadialState: ObservableObject {
     @Published var trigger = RadialTrigger.optionSpace
     @Published var copiesOnly = false
     @Published var message = "No cards here yet"
-    let names = ["Recent", "Pinned", "Collection"]
     var pageCount: Int { max(1, (totalCount + 7) / 8) }
     var selectedItem: ClipboardItemSummary? {
         guard let selected, items.indices.contains(selected), !loading else { return nil }
@@ -27,6 +25,7 @@ final class RadialState: ObservableObject {
 final class RadialController {
     private let store: HistoryStore
     private let service: ClipboardService
+    private let previews: PreviewStore
     private weak var clipboardPanel: PanelController?
     private let hotkey = GlobalHotKey(identifier: 2)
     private let state = RadialState()
@@ -45,9 +44,10 @@ final class RadialController {
     private var isOpen = false
     private var cache: [Int: HistoryPageResult] = [:]
 
-    init(store: HistoryStore, service: ClipboardService, panel: PanelController) {
+    init(store: HistoryStore, service: ClipboardService, previews: PreviewStore, panel: PanelController) {
         self.store = store
         self.service = service
+        self.previews = previews
         clipboardPanel = panel
     }
 
@@ -71,7 +71,6 @@ final class RadialController {
         generation = UUID()
         cache.removeAll()
         target = NSWorkspace.shared.frontmostApplication
-        state.ring = 0
         state.page = 0
         state.totalCount = 0
         state.items = []
@@ -85,9 +84,8 @@ final class RadialController {
                          y: min(max(pointer.y, bounds.minY + size / 2), bounds.maxY - size / 2))
         let window = self.window ?? KopiPanel.make()
         self.window = window
-        window.contentView = NSHostingView(rootView: RadialView(state: state,
+        window.contentView = RadialWindowContent(rootView: RadialView(state: state, previews: previews,
             choose: { [weak self] index in self?.finish(commit: true, chosen: index) },
-            ring: { [weak self] ring in self?.switchRing(ring) },
             page: { [weak self] delta in self?.switchPage(delta) },
             cancel: { [weak self] in self?.finish(commit: false) }))
         window.setFrame(NSRect(x: center.x - size / 2, y: center.y - size / 2, width: size, height: size), display: true)
@@ -97,6 +95,7 @@ final class RadialController {
         lastPointer = pointer
         load()
         state.presented = true
+        (window.contentView as? RadialWindowContent)?.setPresented(true)
         resignObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: window, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.finish(commit: false, restoreFocus: false) }
         }
@@ -107,17 +106,23 @@ final class RadialController {
             if event.type == .leftMouseDown, event.window !== self.window {
                 self.finish(commit: false, restoreFocus: false); return event
             }
+            if event.type == .leftMouseDown, event.window === self.window {
+                let pointer = NSEvent.mouseLocation
+                let x = pointer.x - self.center.x
+                let y = pointer.y - self.center.y
+                let inDock = abs(x) < 180 && y < -228 && y > -300
+                let inCancel = hypot(x, y - 249) < 20
+                if hypot(x, y) > 228 && !inDock && !inCancel {
+                    self.finish(commit: false); return nil
+                }
+            }
             if event.type == .scrollWheel {
                 guard event.momentumPhase.isEmpty else { return nil }
                 let horizontal = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
                 let delta = horizontal ? event.scrollingDeltaX : event.scrollingDeltaY
                 if abs(delta) > 1, Date().timeIntervalSince(self.lastScroll) > 0.2 {
                     self.lastScroll = Date()
-                    if horizontal || event.modifierFlags.contains(.shift) {
-                        self.switchPage(delta < 0 ? 1 : -1)
-                    } else {
-                        self.switchRing((self.state.ring + (delta > 0 ? 2 : 1)) % 3)
-                    }
+                    self.switchPage(delta < 0 ? 1 : -1)
                 }
                 return nil
             }
@@ -136,13 +141,8 @@ final class RadialController {
         case 36, 76: finish(commit: true)
         case 123: switchPage(-1)
         case 124: switchPage(1)
-        case 48: switchRing((state.ring + (event.modifierFlags.contains(.shift) ? 2 : 1)) % 3)
-        case 125, 126:
-            guard !state.loading, !state.items.isEmpty else { return true }
-            let count = state.items.count
-            let index = state.selected ?? (event.keyCode == 125 ? -1 : 0)
-            state.selected = (index + (event.keyCode == 125 ? 1 : count - 1)) % count
-            lastPointer = NSEvent.mouseLocation
+        case 48: selectNext(backwards: event.modifierFlags.contains(.shift))
+        case 125, 126: selectNext(backwards: event.keyCode == 126)
         default:
             if let character = event.charactersIgnoringModifiers?.first, let number = character.wholeNumberValue,
                (1...8).contains(number), state.items.indices.contains(number - 1), !state.loading {
@@ -165,11 +165,12 @@ final class RadialController {
         if state.selected != selection { state.selected = selection }
     }
 
-    private func switchRing(_ ring: Int) {
-        guard (0..<3).contains(ring), state.ring != ring else { return }
-        state.ring = ring
-        state.page = 0
-        load()
+    private func selectNext(backwards: Bool) {
+        guard !state.loading, !state.items.isEmpty else { return }
+        let count = state.items.count
+        let index = state.selected ?? (backwards ? 0 : -1)
+        state.selected = (index + (backwards ? count - 1 : 1)) % count
+        lastPointer = NSEvent.mouseLocation
     }
 
     private func switchPage(_ delta: Int) {
@@ -184,16 +185,15 @@ final class RadialController {
         loadTask?.cancel()
         generation = UUID()
         let token = generation
-        let scope: HistoryScope = [.allClipboard, .pinned, .collection][state.ring]
         let page = state.page
-        let key = page * 3 + state.ring
+        let key = page
         state.selected = nil
         state.loading = true
         lastPointer = NSEvent.mouseLocation
         if let cached = cache[key] { apply(cached); return }
         loadTask = Task { @MainActor [weak self, store] in
             do {
-                let result = try await store.page(HistoryQuery(scope: scope, page: HistoryPage(offset: page * 8, limit: 8)))
+                let result = try await store.page(HistoryQuery(includesCollection: false, page: HistoryPage(offset: page * 8, limit: 8)))
                 guard let self, self.isOpen, self.generation == token, !Task.isCancelled else { return }
                 self.cache[key] = result
                 self.apply(result)
@@ -211,8 +211,7 @@ final class RadialController {
         state.items = result.items
         state.totalCount = result.totalCount
         state.loading = false
-        state.message = state.ring == 1 ? "Pin a card in the panel to keep it here." :
-            state.ring == 2 ? "Save a card to Collection to keep it here." : "Copy something to get started."
+        state.message = "Copy something to get started."
     }
 
     private func finish(commit: Bool, restoreFocus: Bool = true, chosen: Int? = nil) {
@@ -229,6 +228,7 @@ final class RadialController {
         if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil
         if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) }; resignObserver = nil
         state.presented = false
+        (window?.contentView as? RadialWindowContent)?.setPresented(false)
         let window = window
         let reduced = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         let delay: Duration = reduced || !restoreFocus ? .zero : .milliseconds(110)

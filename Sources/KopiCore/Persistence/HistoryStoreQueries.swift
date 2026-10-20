@@ -172,6 +172,7 @@ extension HistoryStore {
         case .collection:
             conditions.append("i.is_collection = 1")
         }
+        if !query.includesCollection { conditions.append("i.is_collection = 0") }
         if !query.kinds.isEmpty {
             let kinds = query.kinds.map(\.rawValue).sorted()
             let placeholders = kinds.enumerated().map { ":kind\($0.offset)" }.joined(separator: ", ")

@@ -121,7 +121,7 @@ struct SettingsView: View {
                 get: { settings.settings.radialCopiesOnly },
                 set: { value in settings.update { $0.radialCopiesOnly = value } }
             )).disabled(!settings.settings.radialEnabled)
-            detail("Scroll to switch rings. Use ← → or Shift-scroll for more cards, ↑ ↓ to select, and Return to confirm. Number keys 1–8 select a card. The panel shortcut stays the same.")
+            detail("Recent clips only. Scroll or use ← → for older clips. Use ↑ ↓, Tab, or 1–8 to select, and Return to confirm. Images include previews.")
             Button("Open radial clipboard") { model.showRadial() }
                 .disabled(!settings.settings.radialEnabled)
             detail("Pasting uses macOS Accessibility access. Without it, the card is copied so you can press ⌘V.")

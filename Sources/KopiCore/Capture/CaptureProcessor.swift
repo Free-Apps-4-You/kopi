@@ -1,9 +1,19 @@
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 
 /// Failures of content preparation.
-public enum CaptureProcessorError: Error, Sendable, Equatable {
+public enum CaptureProcessorError: Error, Sendable, Equatable, LocalizedError {
     /// The pasteboard held nothing Kopi understands.
     case unsupportedContent
+    case imageDataUnavailable
+
+    public var errorDescription: String? {
+        switch self {
+        case .unsupportedContent: "This clipboard content is not supported."
+        case .imageDataUnavailable: "This image is a private app file. Copy the image itself to capture a preview."
+        }
+    }
 }
 
 /// Converts one pasteboard snapshot into a storable capture.
@@ -39,21 +49,11 @@ public actor CaptureProcessor {
 
     // MARK: - Kind
 
-    /// The kind a snapshot is captured as, in one place and in priority order:
-    ///
-    /// 1. file URLs → ``ClipboardItemKind/files``, a Finder copy however many files
-    ///    it holds. A copy that carries files keeps pointing at them, so the files win
-    ///    over every other flavour it may also expose.
-    /// 2. image bytes, first of png, tiff, jpeg, heic, gif, webp → ``ClipboardItemKind/image``.
-    /// 3. `public.url` → ``ClipboardItemKind/link``, whether or not the copy also
-    ///    carries text or markup.
-    /// 4. html or rtf → ``ClipboardItemKind/richText``.
-    /// 5. plain text → ``ClipboardItemKind/text``.
-    ///
-    /// `nil` means the snapshot holds nothing Kopi can store, for instance a PDF or a
-    /// private flavour.
+    /// A single decodable image file is an image, including clipboard screenshot
+    /// URLs. Mixed file selections stay together as files. Otherwise file references
+    /// take priority over alternate flavours, followed by image bytes, links and text.
     public nonisolated static func kind(of snapshot: PasteboardSnapshot) -> ClipboardItemKind? {
-        if !fileURLs(in: snapshot).isEmpty { return .files }
+        if !fileURLs(in: snapshot).isEmpty { return imageFileURL(in: snapshot) == nil ? .files : .image }
         if imageFlavour(in: snapshot) != nil { return .image }
         if urlString(in: snapshot) != nil { return .link }
         if hasRichFlavour(in: snapshot) { return .richText }
@@ -133,11 +133,33 @@ public actor CaptureProcessor {
         capturedAt: Date,
         destination: CaptureDestination
     ) async throws -> ClipboardItemInsertion {
-        guard let flavour = Self.imageFlavour(in: snapshot),
-              let data = snapshot.data(for: flavour.pasteboardType)
-        else {
-            throw CaptureProcessorError.unsupportedContent
-        }
+        let flavour: ClipboardRepresentationKind
+        let data: Data
+        if let image = Self.imageFlavour(in: snapshot), let bytes = snapshot.data(for: image.pasteboardType) {
+            flavour = image
+            data = bytes
+        } else if let url = Self.imageFileURL(in: snapshot) {
+            guard !Self.isPrivateAppStorage(url) else { throw CaptureProcessorError.imageDataUnavailable }
+            let bytes = try Data(contentsOf: url)
+            guard let source = CGImageSourceCreateWithData(bytes as CFData, nil),
+                  let type = CGImageSourceGetType(source) as String?
+            else { throw CaptureProcessorError.unsupportedContent }
+            if let original = ClipboardRepresentationKind.allCases.first(where: { $0.isImage && $0.pasteboardType == type }) {
+                flavour = original
+                data = bytes
+            } else {
+                // Formats without a clipboard flavour (e.g. BMP) become real PNG
+                // data, never a file URL masquerading as an image.
+                guard let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw CaptureProcessorError.unsupportedContent }
+                let output = NSMutableData()
+                guard let destination = CGImageDestinationCreateWithData(output, UTType.png.identifier as CFString, 1, nil)
+                else { throw CaptureProcessorError.unsupportedContent }
+                CGImageDestinationAddImage(destination, image, nil)
+                guard CGImageDestinationFinalize(destination) else { throw CaptureProcessorError.unsupportedContent }
+                flavour = .png
+                data = output as Data
+            }
+        } else { throw CaptureProcessorError.unsupportedContent }
         let stored = try await assetStore.importData(
             data,
             kind: .image,
@@ -226,11 +248,36 @@ public actor CaptureProcessor {
         return urls
     }
 
+    /// No protected app directories are probed during classification. Image bytes
+    /// supplied by the clipboard can still be used without opening the file URL.
+    static func imageFileURL(in snapshot: PasteboardSnapshot) -> URL? {
+        let urls = fileURLs(in: snapshot)
+        guard urls.count == 1, let url = urls.first,
+              UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true
+        else { return nil }
+        if isPrivateAppStorage(url) || imageFlavour(in: snapshot) != nil { return url }
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              CGImageSourceGetCount(source) > 0, CGImageSourceGetType(source) != nil
+        else { return nil }
+        return url
+    }
+
+    /// Clipboard file URLs do not authorize reading another application's data.
+    /// Check the lexical path before any stat, ImageIO or data read can trigger TCC.
+    static func isPrivateAppStorage(_ url: URL) -> Bool {
+        let path = url.standardizedFileURL.path
+        let ownAssets = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Kopi/Assets").path
+        if path.hasPrefix(ownAssets + "/") { return false }
+        return path.contains("/Library/Containers/") || path.contains("/Library/Group Containers/")
+            || path.contains("/Library/Application Support/")
+    }
+
     /// File cards keep references only; Kopi copies the content when the card is pinned.
     static func fileReferences(in snapshot: PasteboardSnapshot) -> [FileReference] {
         fileURLs(in: snapshot).map { url in
             let path = url.standardizedFileURL.path
-            let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
+            let values: URLResourceValues? = isPrivateAppStorage(url) ? nil : try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
             let isDirectory = values?.isDirectory ?? false
             return FileReference(
                 path: path,
