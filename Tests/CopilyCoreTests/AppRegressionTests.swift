@@ -34,6 +34,8 @@ struct AppRegressionTests {
 
     @Test("Settings gear accepts a first click and forwards repeated requests")
     func settingsGearClickThrough() {
+        // NSButton dispatches target/action through NSApp, including in CI.
+        _ = NSApplication.shared
         var requests = 0
         let button = PanelSettingsButton { requests += 1 }
         #expect(button.acceptsFirstMouse(for: nil))
@@ -571,7 +573,12 @@ struct AppRegressionTests {
         await fixture.notes.preparePreview(deleted)
         fixture.notes.searchText = "Automatically added"
         await fixture.notes.synchronizeIfNeeded()
-        #expect(fixture.notes.filteredNotes.count == 1)
+        // Search is debounced independently of the periodic sync.
+        for _ in 0..<100 {
+            if fixture.notes.filteredNotes.map(\.id) == [deleted.id] { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(fixture.notes.filteredNotes.map(\.id) == [deleted.id])
         await runner.setSummaries([NotesFixtures.folderID: []])
         for _ in 0..<100 {
             if fixture.notes.state == .empty { break }
