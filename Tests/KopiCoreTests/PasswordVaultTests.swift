@@ -351,7 +351,12 @@ struct PasswordVaultTests {
         #expect(model.revealed == nil)
         await model.reveal(record)
         #expect(model.revealed?.password == "Secret")
-        try await Task.sleep(for: .milliseconds(60))
+        // A loaded Intel CI runner may resume this task before the hide task.
+        // Yield until the observable result, with a bounded failure deadline.
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while model.revealed != nil, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
         #expect(model.revealed == nil)
         await model.reveal(record)
         model.setVisible(false)
