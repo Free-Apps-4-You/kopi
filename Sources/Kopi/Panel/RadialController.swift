@@ -111,8 +111,8 @@ final class RadialController {
                 let x = pointer.x - self.center.x
                 let y = pointer.y - self.center.y
                 let inDock = abs(x) < 180 && y < -228 && y > -300
-                let inCancel = hypot(x, y - 249) < 20
-                if hypot(x, y) > 228 && !inDock && !inCancel {
+                let inCancel = hypot(x, y) < RadialGeometry.cancelRadius
+                if hypot(x, y) > RadialGeometry.outerRadius * RadialGeometry.hoverScale + 1 && !inDock && !inCancel {
                     self.finish(commit: false); return nil
                 }
             }
@@ -161,7 +161,7 @@ final class RadialController {
         let x = pointer.x - center.x
         let y = pointer.y - center.y
         let isAtOrigin = hypot(pointer.x - activationPoint.x, pointer.y - activationPoint.y) < 12
-        let selection = isAtOrigin || y < -225 ? nil : RadialSelection.index(x: x, y: y, count: state.items.count, previous: state.selected)
+        let selection = isAtOrigin || y < -234 ? nil : RadialSelection.index(x: x, y: y, count: state.items.count, previous: state.selected)
         if state.selected != selection { state.selected = selection }
     }
 

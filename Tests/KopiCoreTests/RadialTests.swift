@@ -27,7 +27,7 @@ struct RadialTests {
         #expect(RadialSelection.index(x: nearEdge.0, y: nearEdge.1, count: 8, previous: 0) == 0)
         let pastEdge = point(30)
         #expect(RadialSelection.index(x: pastEdge.0, y: pastEdge.1, count: 8, previous: 0) == 1)
-        #expect(RadialSelection.index(x: 0, y: 83, count: 8, previous: 0) == nil)
+        #expect(RadialSelection.index(x: 0, y: 47, count: 8, previous: 0) == nil)
         #expect(RadialSelection.index(x: 0, y: 150, count: 1, previous: 7) == 0)
     }
 
@@ -99,5 +99,53 @@ struct RadialSegmentTests {
                 #expect(paths[index].contains(point))
             }
         }
+    }
+}
+
+
+import CoreText
+
+@Suite("Radial content fitting")
+struct RadialContentTests {
+    @Test func completeImagesFitEverySectorWithoutCrossingTheHub() {
+        for count in 1...8 {
+            for index in 0..<count {
+                let layout = RadialContentLayout(index: index, count: count)
+                for aspect in [0.2, 0.6, 1, 1.8, 4.5] {
+                    let rect = layout.imageRect(aspectRatio: aspect)
+                    #expect(rect.width > 15 && rect.height > 15)
+                    #expect(abs(rect.width / rect.height - aspect) < 0.001)
+                    #expect(layout.contains(rect))
+                }
+            }
+        }
+    }
+
+    @Test func textFollowsTheWedgeAndKeepsLongLinesInsideIt() {
+        let samples = ["A short thought", String(repeating: "A useful idea worth keeping. ", count: 30),
+                       "https://example.com/" + String(repeating: "long-path-", count: 60),
+                       String(repeating: "こんにちは 世界 👋🏽 ", count: 40)]
+        for count in 1...8 {
+            for index in 0..<count {
+                let layout = RadialContentLayout(index: index, count: count)
+                let rows = layout.textRows()
+                #expect(!rows.isEmpty)
+                #expect(rows.allSatisfy { layout.contains($0) })
+                for sample in samples {
+                    let lines = RadialTextFlow.lines(sample, layout: layout, color: .black)
+                    #expect(!lines.isEmpty)
+                    for line in lines {
+                        #expect(layout.contains(line.rect))
+                        #expect(CTLineGetTypographicBounds(line.text, nil, nil, nil) - CTLineGetTrailingWhitespaceWidth(line.text) <= line.rect.width + 0.5)
+                    }
+                }
+            }
+        }
+        // The eight-item side wedge can use materially more width than the old
+        // fixed 94-point card, while the top wedge tapers toward the hub.
+        let side = RadialContentLayout(index: 2, count: 8).textRows()
+        #expect(side.map(\.width).max()! >= 120)
+        let top = RadialContentLayout(index: 0, count: 8).textRows()
+        #expect(Set(top.map(\.width)).count > 2)
     }
 }

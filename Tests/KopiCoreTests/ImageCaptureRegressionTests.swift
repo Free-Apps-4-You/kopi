@@ -121,4 +121,19 @@ struct ImageCaptureRegressionTests {
         #expect(previews.entry(for: result.itemID).image?.width == 80)
         #expect(previews.entry(for: result.itemID).image?.height == 40)
     }
+    @Test @MainActor func radialCanUpgradeAnExistingSmallGridThumbnail() async throws {
+        let harness = try await CaptureHarness()
+        let image = try await harness.processor.insertion(from: PasteboardSnapshot(changeCount: 1, items: [imageItem(pngData(width: 800, height: 400))]), origin: .external(changeCount: 1))
+        let result = try await harness.workspace.store.insert(image)
+        let previews = PreviewStore(store: harness.workspace.store, processor: harness.processor)
+        await previews.load(result.summary, maxPixelSize: 80)
+        #expect(previews.entry(for: result.itemID).image?.width == 80)
+        await previews.load(result.summary, maxPixelSize: 640)
+        #expect(previews.entry(for: result.itemID).image?.width == 640)
+        #expect(previews.entry(for: result.itemID).image?.height == 320)
+        await previews.load(result.summary, maxPixelSize: 320)
+        #expect(previews.entry(for: result.itemID).image?.width == 640)
+        #expect(previews.cachedEntryCount == 1)
+    }
+
 }

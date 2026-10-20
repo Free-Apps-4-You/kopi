@@ -23,6 +23,7 @@ final class PreviewStore {
 
     final class Entry: ObservableObject {
         @Published fileprivate(set) var payload: Payload?
+        fileprivate var pixelSizeLimit = 0
         fileprivate var fingerprint: ContentFingerprint?
 
         var image: CGImage? {
@@ -44,6 +45,7 @@ final class PreviewStore {
     private struct Request {
         let token: UUID
         let fingerprint: ContentFingerprint
+        let pixelSizeLimit: Int
     }
 
     private let store: HistoryStore
@@ -86,15 +88,18 @@ final class PreviewStore {
     func invalidate(_ itemID: ClipboardItemID) {
         inFlight[itemID] = nil
         entries[itemID]?.fingerprint = nil
+        entries[itemID]?.pixelSizeLimit = 0
         entries[itemID]?.payload = nil
     }
 
     func load(_ item: ClipboardItemSummary, maxPixelSize: Int = 320) async {
         let entry = entry(for: item.id)
-        guard entry.fingerprint != item.fingerprint else { return }
-        guard inFlight[item.id]?.fingerprint != item.fingerprint else { return }
+        let requiredSize = item.kind == .image ? max(1, maxPixelSize) : 0
+        guard entry.fingerprint != item.fingerprint || entry.pixelSizeLimit < requiredSize else { return }
+        if let running = inFlight[item.id], running.fingerprint == item.fingerprint,
+           running.pixelSizeLimit >= requiredSize { return }
         let token = UUID()
-        inFlight[item.id] = Request(token: token, fingerprint: item.fingerprint)
+        inFlight[item.id] = Request(token: token, fingerprint: item.fingerprint, pixelSizeLimit: requiredSize)
         defer {
             if inFlight[item.id]?.token == token { inFlight[item.id] = nil }
             trim()
@@ -117,6 +122,7 @@ final class PreviewStore {
         guard payload != nil || item.kind == .text || item.kind == .link || item.kind == .files else { return }
         entry.payload = payload
         entry.fingerprint = item.fingerprint
+        entry.pixelSizeLimit = requiredSize
         touch(item.id)
     }
 
@@ -148,6 +154,7 @@ final class PreviewStore {
             if let entry = entries.removeValue(forKey: oldest) {
                 entry.payload = nil
                 entry.fingerprint = nil
+                entry.pixelSizeLimit = 0
             }
             inFlight[oldest] = nil
         }

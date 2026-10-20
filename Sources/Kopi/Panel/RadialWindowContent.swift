@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import KopiCore
 
 /// The live backdrop is a stationary AppKit sibling of the animated SwiftUI
 /// content, so scaling the wheel never scales/composites the live blur itself.
@@ -16,8 +17,9 @@ final class RadialWindowContent: NSView {
         blur.material = .hudWindow
         blur.blendingMode = .behindWindow
         blur.state = .active
+        blur.alphaValue = 0
         blur.wantsLayer = true
-        blur.layer?.cornerRadius = 228
+        blur.layer?.cornerRadius = RadialGeometry.outerRadius
         blur.layer?.masksToBounds = true
         addSubview(blur)
         addSubview(host)
@@ -34,13 +36,14 @@ final class RadialWindowContent: NSView {
     func setPresented(_ presented: Bool) {
         NSAnimationContext.runAnimationGroup { context in
             context.duration = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ? 0 : 0.11
-            blur.animator().alphaValue = presented ? 1 : 0
+            blur.animator().alphaValue = presented ? 0.68 : 0
         }
     }
 
     override func layout() {
         super.layout()
-        blur.frame = NSRect(x: bounds.midX - 228, y: bounds.midY - 228, width: 456, height: 456)
+        let radius = RadialGeometry.outerRadius
+        blur.frame = NSRect(x: bounds.midX - radius, y: bounds.midY - radius, width: radius * 2, height: radius * 2)
     }
 
     private func updateAccessibility() {

@@ -1,9 +1,15 @@
 import Foundation
 
 /// Evenly spaced clockwise directions starting at the top, with a safe center cancel zone.
+public enum RadialGeometry {
+    public static let outerRadius = 220.0
+    public static let cancelRadius = 48.0
+    public static let hoverScale = 1.06
+}
+
 public enum RadialSelection {
     public static func index(x: Double, y: Double, count: Int, previous: Int? = nil) -> Int? {
-        guard count > 0, hypot(x, y) >= 88 else { return nil }
+        guard count > 0, hypot(x, y) >= RadialGeometry.cancelRadius else { return nil }
         let slots = min(count, 8)
         let step = 2 * Double.pi / Double(slots)
         let direction = atan2(x, y)
