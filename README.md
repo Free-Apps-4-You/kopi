@@ -31,6 +31,8 @@ Click a card to copy it, press **Return** to paste, or **Space** for a closer lo
 Radial clipboard is on by default. Change its hold shortcut or switch it off in **Settings → Opening**.
 Auto-paste requires Accessibility permission; copying works without it.
 
+<p align="center"><img src="docs/images/kopi-radial.png" alt="Kopi radial clipboard showing four sample collection cards" width="420"></p>
+
 | Colors, without the guesswork | Your clipboard, your choices |
 | :---: | :---: |
 | ![Kopi color inspector showing HEX and RGB copy controls](docs/images/kopi-colors.png) | ![Kopi Privacy settings with local storage and application exclusions](docs/images/kopi-privacy.png) |
