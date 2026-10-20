@@ -7,8 +7,8 @@ import Testing
 struct ClipboardInspiredFeaturesTests {
     @Test("Previous app identities are displayed and filtered as Kopi")
     func previousBrandIdentity() {
-        #expect(SourceAppInfo.canonicalBundleIdentifier("com.copily.app") == "com.kopi.app")
-        #expect(SourceAppInfo(bundleIdentifier: "com.copily.app", name: "Copily").kopiDisplayName == "Kopi")
+        #expect(SourceAppInfo.canonicalBundleIdentifier(LegacyAppIdentity.bundleIdentifier) == "com.kopi.app")
+        #expect(SourceAppInfo(bundleIdentifier: LegacyAppIdentity.bundleIdentifier, name: LegacyAppIdentity.supportDirectoryName).kopiDisplayName == "Kopi")
     }
 
     @Test("Colors recognize explicit HEX and RGB formats without guessing ordinary text")

@@ -10,7 +10,7 @@ public enum ApplicationDataMigration {
     ///
     /// This is an archived directory name: it identifies data written by earlier
     /// builds and is only moved away from.
-    public static let archivedSupportDirectoryName = "Copily"
+    public static let archivedSupportDirectoryName = LegacyAppIdentity.supportDirectoryName
     public static let archivedSupportDirectoryNames = [archivedSupportDirectoryName, "Velpy"]
 
     /// Application Support folder the application uses now.

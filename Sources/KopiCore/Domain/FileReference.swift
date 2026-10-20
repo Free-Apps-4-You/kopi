@@ -4,7 +4,7 @@ import Foundation
 public struct SourceAppInfo: Sendable, Hashable, Codable {
     public static let kopiBundleIdentifier = "com.kopi.app"
     /// These identify the same app in history written before its rename.
-    public static let kopiBundleIdentifiers = ["com.kopi.app", "com.copily.app", "com.velpy.app", "com.velpy.Velpy"]
+    public static let kopiBundleIdentifiers = ["com.kopi.app", LegacyAppIdentity.bundleIdentifier, "com.velpy.app", "com.velpy.Velpy"]
 
     public static func canonicalBundleIdentifier(_ identifier: String) -> String {
         kopiBundleIdentifiers.contains(identifier) ? kopiBundleIdentifier : identifier

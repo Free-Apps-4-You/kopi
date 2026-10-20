@@ -70,7 +70,7 @@ struct ApplicationDataMigrationTests {
     func newestArchiveWins() throws {
         let support = supportDirectory()
         defer { try? FileManager.default.removeItem(at: support) }
-        try write("recent", to: support.appendingPathComponent("Copily/history.sqlite"))
+        try write("recent", to: support.appendingPathComponent("\(LegacyAppIdentity.supportDirectoryName)/history.sqlite"))
         try write("old", to: support.appendingPathComponent("Velpy/history.sqlite"))
         #expect(try ApplicationDataMigration.migrateSupportDirectoryIfNeeded(supportDirectory: support))
         #expect(try String(contentsOf: currentDirectory(in: support).appendingPathComponent("history.sqlite"), encoding: .utf8) == "recent")
@@ -138,7 +138,7 @@ struct SettingsMigrationTests {
     func importsExplicitPreviousDefaults() throws {
         try withSuites { current, archived in
             let blob = try JSONEncoder().encode(KopiSettings())
-            archived.set(blob, forKey: "copily.settings")
+            archived.set(blob, forKey: LegacyAppIdentity.settingsStorageKey)
             let migrated = KopiSettingsStore(defaults: current, archivedDefaults: archived)
             #expect(migrated.settings == KopiSettings())
             #expect(current.data(forKey: KopiSettingsStore.storageKey) == blob)
@@ -148,7 +148,7 @@ struct SettingsMigrationTests {
     @Test("A previous-app reset prevents resurrection of older preferences")
     func importsPreviousReset() throws {
         try withSuites { current, archived in
-            archived.set(true, forKey: "copily.settings.migrationCompleted")
+            archived.set(true, forKey: LegacyAppIdentity.settingsMigrationKey)
             var stale = KopiSettings()
             stale.appearance = .dark
             archived.set(try JSONEncoder().encode(stale), forKey: "velpy.settings")

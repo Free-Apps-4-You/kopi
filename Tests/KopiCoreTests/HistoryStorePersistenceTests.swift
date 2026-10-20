@@ -20,7 +20,7 @@ struct HistoryStorePersistenceTests {
         try await database.write { db in
             // Reproduce the database left by the app before its rename.
             try db.execute(sql: "ALTER TABLE kopi_metadata RENAME TO velpy_metadata")
-            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier IN ('v3_copily_metadata', 'v4_kopi_metadata')")
+            try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier IN ('\(LegacyAppIdentity.metadataMigration)', 'v4_kopi_metadata')")
             try db.execute(sql: "INSERT INTO velpy_metadata(key, value) VALUES ('upgrade_marker', 'preserved')")
         }
 
@@ -49,7 +49,7 @@ struct HistoryStorePersistenceTests {
         let inserted = try await workspace.store.insert(textInsertion("Already using the new name"))
         let database = try DatabaseQueue(path: workspace.databasePath)
         try await database.write { db in
-            try db.execute(sql: "ALTER TABLE kopi_metadata RENAME TO copily_metadata")
+            try db.execute(sql: "ALTER TABLE kopi_metadata RENAME TO \(LegacyAppIdentity.metadataTable)")
             try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v4_kopi_metadata'")
         }
 

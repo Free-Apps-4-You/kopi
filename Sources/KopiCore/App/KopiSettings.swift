@@ -147,7 +147,7 @@ public final class KopiSettingsStore: ObservableObject {
     ///
     /// This is an archived suite name: its values are read once, when the current
     /// suite has no settings yet, and never written again.
-    public static let archivedSuiteName = "com.copily.Copily"
+    public static let archivedSuiteName = LegacyAppIdentity.settingsSuiteName
     public static let archivedSuiteNames = [archivedSuiteName, "com.velpy.Velpy"]
     public static let storageKey = "kopi.settings"
     /// Set once the archived suite has been considered, so Reset to Defaults is not
@@ -189,8 +189,8 @@ public final class KopiSettingsStore: ObservableObject {
               !current.bool(forKey: migrationKey)
         else { return }
         // A reset in the previous app must not reimport an even older preference.
-        if archived.data(forKey: "copily.settings") == nil,
-           archived.bool(forKey: "copily.settings.migrationCompleted") {
+        if archived.data(forKey: LegacyAppIdentity.settingsStorageKey) == nil,
+           archived.bool(forKey: LegacyAppIdentity.settingsMigrationKey) {
             current.set(try? JSONEncoder().encode(KopiSettings()), forKey: storageKey)
             current.set(true, forKey: migrationKey)
             return
@@ -208,7 +208,7 @@ public final class KopiSettingsStore: ObservableObject {
     /// Undecodable values, values that carry no choice, and the unrelated
     /// system-wide defaults a `UserDefaults` view also reports are ignored.
     private static func archivedSettingsBlob(in archived: UserDefaults) -> Data? {
-        for key in [storageKey, "copily.settings", "velpy.settings"] {
+        for key in [storageKey, LegacyAppIdentity.settingsStorageKey, "velpy.settings"] {
             if let data = archived.data(forKey: key),
                (try? JSONDecoder().decode(KopiSettings.self, from: data)) != nil { return data }
         }

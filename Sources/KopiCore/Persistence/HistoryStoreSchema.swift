@@ -12,14 +12,14 @@ enum HistoryStoreSchema {
             try db.execute(sql: schemaV2)
         }
         // Historical migration identifiers and table names must remain readable.
-        migrator.registerMigration("v3_copily_metadata") { db in
-            if try !db.tableExists("copily_metadata"), try db.tableExists("velpy_metadata") {
-                try db.execute(sql: "ALTER TABLE velpy_metadata RENAME TO copily_metadata")
+        migrator.registerMigration(LegacyAppIdentity.metadataMigration) { db in
+            if try !db.tableExists(LegacyAppIdentity.metadataTable), try db.tableExists("velpy_metadata") {
+                try db.execute(sql: "ALTER TABLE velpy_metadata RENAME TO \(LegacyAppIdentity.metadataTable)")
             }
         }
         migrator.registerMigration("v4_kopi_metadata") { db in
-            if try !db.tableExists("kopi_metadata"), try db.tableExists("copily_metadata") {
-                try db.execute(sql: "ALTER TABLE copily_metadata RENAME TO kopi_metadata")
+            if try !db.tableExists("kopi_metadata"), try db.tableExists(LegacyAppIdentity.metadataTable) {
+                try db.execute(sql: "ALTER TABLE \(LegacyAppIdentity.metadataTable) RENAME TO kopi_metadata")
             }
         }
         try migrator.migrate(writer)
