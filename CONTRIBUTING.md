@@ -15,7 +15,9 @@ swift run Kopi --selfcheck
 ```
 
 Run the app with `swift run Kopi`, or create a bundle with `scripts/build-app.sh`.
-Package that bundle with `scripts/build-dmg.sh`.
+Install that bundle to `/Applications` with `scripts/install-app.sh`, which quits
+the running copy and removes the `dist` bundle so macOS sees only one Kopi; add
+`--no-launch` to skip reopening it. Package the bundle with `scripts/build-dmg.sh`.
 These scripts build for the current Mac. Downloads are named `Kopi-Intel-Mac`
 or `Kopi-Apple-Silicon-Mac` to match the application's actual architecture;
 release builds run on each processor natively.
