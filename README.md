@@ -10,11 +10,11 @@ Your clipboard, ready when you need it. A native, open-source clipboard manager 
 
 [Apple Silicon ZIP](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-Apple-Silicon-Mac.zip) · [Intel ZIP](https://github.com/Free-Apps-4-You/kopi/releases/latest/download/Kopi-Intel-Mac.zip) · [Releases](https://github.com/Free-Apps-4-You/kopi/releases)
 
-Intel & Apple Silicon · macOS 14+ · [MIT licensed](LICENSE)
+Intel & Apple Silicon · macOS 14+ · [MIT licensed](LICENSE) · [Website](https://free-apps-4-you.github.io/kopi/)
 
 </div>
 
-![Kopi showing a collection of code, links, text, and a color swatch](docs/images/kopi-collection.png)
+![The Kopi panel showing code, a link, a note, a colour swatch, rich text, an image, files and a collected snippet](docs/images/kopi-panel.png)
 
 ## Keep the good stuff close
 
@@ -38,7 +38,7 @@ Select a clip to copy it, then press ⌘V in your destination app.
 | :---: | :---: |
 | ![Kopi color inspector showing HEX and RGB copy controls](docs/images/kopi-colors.png) | ![Kopi Privacy settings with local storage and application exclusions](docs/images/kopi-privacy.png) |
 
-*Screenshots use sample content.*
+*Screenshots use sample content.* A full gallery lives on the [project website](https://free-apps-4-you.github.io/kopi/).
 
 ## Get started
 

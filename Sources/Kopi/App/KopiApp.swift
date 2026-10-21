@@ -6,7 +6,8 @@ import KopiCore
 /// Entry point of the executable.
 ///
 /// `swift run Kopi --selfcheck` stays headless and runs the core self-check;
-/// plain `swift run Kopi` starts the menu bar application.
+/// `swift run Kopi --render-showcase <directory>` draws the interface into images
+/// for the project website; plain `swift run Kopi` starts the menu bar application.
 @main
 enum KopiMain {
     @MainActor
@@ -14,7 +15,36 @@ enum KopiMain {
         if CommandLine.arguments.contains("--selfcheck") {
             KopiSelfCheck.runHeadless()
         }
+        if let index = CommandLine.arguments.firstIndex(of: "--render-showcase") {
+            let directory = CommandLine.arguments.indices.contains(index + 1)
+                ? URL(fileURLWithPath: CommandLine.arguments[index + 1], isDirectory: true)
+                : URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+            renderShowcase(into: directory)
+            return
+        }
         KopiApplication.run()
+    }
+
+    /// Draws the showcase pictures and returns when they are written.
+    ///
+    /// The run loop is turned by hand rather than through `NSApplication.run`, so the
+    /// application is never activated and the user's keyboard and pointer stay where
+    /// they are.
+    private static func renderShowcase(into directory: URL) {
+        let application = NSApplication.shared
+        application.setActivationPolicy(.accessory)
+        let finished = DispatchSemaphore(value: 0)
+        Task { @MainActor in
+            do {
+                try await ShowcaseRenderer.run(outputDirectory: directory)
+            } catch {
+                FileHandle.standardError.write(Data("Showcase rendering failed: \(error)\n".utf8))
+            }
+            finished.signal()
+        }
+        while finished.wait(timeout: .now() + 0.02) == .timedOut {
+            RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.02))
+        }
     }
 }
 

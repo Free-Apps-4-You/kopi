@@ -105,6 +105,62 @@ final class AppEnvironment {
         )
     }
 
+    /// A throwaway environment for the showcase renderer: its own database, asset
+    /// directory and preferences suite, and a scripted Notes client.
+    ///
+    /// Nothing here reaches the user's history, notes or preferences, and the
+    /// clipboard is never observed, so the renderer can run while the Mac is in use.
+    static func showcase(rootDirectory: URL) throws -> AppEnvironment {
+        let suiteName = "com.kopi.Kopi.showcase"
+        if let defaults = UserDefaults(suiteName: suiteName) {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        let settings = KopiSettingsStore(defaults: UserDefaults(suiteName: suiteName))
+        let assetStore = try AssetStore(rootDirectory: rootDirectory)
+        let store = try HistoryStore(
+            path: rootDirectory.appendingPathComponent("history.sqlite").path,
+            assetStore: assetStore
+        )
+        let captureStatus = ClipboardCaptureStatus()
+        let processor = CaptureProcessor(assetStore: assetStore)
+        let service = ClipboardService(
+            store: store,
+            pasteboard: NSPasteboardAccess(),
+            processor: processor,
+            lifecycle: WorkspaceLifecycleObserver(),
+            frontmostApp: WorkspaceFrontmostAppProvider(),
+            status: captureStatus
+        )
+        let search = ClipboardSearchController(store: store)
+        let maintenance = HistoryMaintenance(store: store)
+        let notes: any NotesClient = ShowcaseNotesClient()
+        let notesModel = NotesTabViewModel(client: notes, service: service, settings: settings)
+        let previews = PreviewStore(store: store, processor: processor, code: CodeHighlightService())
+        let panelModel = PanelViewModel(
+            store: store,
+            service: service,
+            search: search,
+            captureStatus: captureStatus,
+            settings: settings,
+            notes: notesModel,
+            previews: previews
+        )
+        return AppEnvironment(
+            settings: settings,
+            assetStore: assetStore,
+            store: store,
+            processor: processor,
+            service: service,
+            search: search,
+            maintenance: maintenance,
+            captureStatus: captureStatus,
+            notes: notes,
+            notesModel: notesModel,
+            previews: previews,
+            panelModel: panelModel
+        )
+    }
+
     /// `~/Library/Application Support/Kopi/history.sqlite`, beside the asset files.
     static func databaseURL(for assetStore: AssetStore) -> URL {
         assetStore.rootDirectory

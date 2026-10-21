@@ -20,6 +20,22 @@ These scripts build for the current Mac. Downloads are named `Kopi-Intel-Mac`
 or `Kopi-Apple-Silicon-Mac` to match the application's actual architecture;
 release builds run on each processor natively.
 
+## The project website
+
+The site in `docs/` is published by GitHub Pages from the `main` branch. It is
+plain HTML, CSS and one small script, with no build step and no dependencies.
+
+The screenshots it uses are drawn by the application itself:
+
+```sh
+swift run Kopi --render-showcase docs/assets/images
+```
+
+The command fills a throwaway database with sample content, draws the real views
+into an off-screen window and writes the PNG files. Nothing appears on screen, the
+clipboard is never observed, and no window takes the keyboard, so it is safe to run
+while the Mac is in use. Keep the file names stable: the page refers to them.
+
 By submitting a contribution, you agree to license it under the project's MIT license.
 
 Apple Notes integration is intentionally read-only. Keep create, update, delete,
