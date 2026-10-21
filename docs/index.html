@@ -87,11 +87,29 @@
     </div>
 
     <figure class="hero__shot reveal" data-reveal>
-      <div class="shot">
-        <img src="assets/images/panel-clipboard.png" width="924" height="604"
-             alt="The Kopi panel showing a grid of clipboard cards: highlighted code, a link to GitHub, a written note, a blue colour swatch with its HEX and RGB values, rich text, an image, a group of files and a collected snippet.">
+      <div class="carousel" data-carousel>
+        <div class="carousel__stage">
+          <img class="carousel__slide is-active" data-slide
+               data-caption="The Kopi panel — every copy you made, one shortcut away."
+               src="assets/images/panel-clipboard.png" width="924" height="604"
+               alt="The Kopi panel showing a grid of clipboard cards: highlighted code, a link to GitHub, a written note, a blue colour swatch with its HEX and RGB values, rich text, an image, a group of files and a collected snippet.">
+          <img class="carousel__slide carousel__slide--radial" data-slide
+               data-caption="The radial clipboard — hold ⌥Space, point at a card, release to copy."
+               src="assets/images/radial.png" width="600" height="672"
+               alt="The radial clipboard: a wheel of eight slices around a cancel hub, showing a code snippet, a GitHub link, a note, a colour and a picture thumbnail, with a Recent bar underneath.">
+        </div>
+        <div class="carousel__bar">
+          <p class="carousel__caption" data-carousel-caption>The Kopi panel — every copy you made, one shortcut away.</p>
+          <div class="carousel__dots" role="group" aria-label="Screenshots">
+            <button class="carousel__dot is-active" type="button" data-slide-dot aria-pressed="true" aria-label="Show the clipboard panel"></button>
+            <button class="carousel__dot" type="button" data-slide-dot aria-pressed="false" aria-label="Show the radial clipboard"></button>
+          </div>
+          <button class="carousel__pause" type="button" data-carousel-pause aria-label="Pause the screenshot rotation">
+            <svg class="carousel__pause-icon" viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="currentColor"><rect x="7" y="5" width="3.5" height="14" rx="1.2"/><rect x="13.5" y="5" width="3.5" height="14" rx="1.2"/></svg>
+            <svg class="carousel__play-icon" viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="currentColor"><path d="M8 5.2c0-.9 1-1.5 1.8-1l9 6.8c.7.5.7 1.5 0 2L9.8 19.8c-.8.5-1.8-.1-1.8-1z"/></svg>
+          </button>
+        </div>
       </div>
-      <figcaption>The Kopi panel — every copy you made, one shortcut away.</figcaption>
     </figure>
   </div>
 </section>

@@ -129,12 +129,12 @@ enum ShowcaseRenderer {
         state.trigger = .optionSpace
         state.controlsY = RadialGeometry.dockCenterY
 
+        // The wheel is translucent: on a Mac it takes the colour of the desktop
+        // behind it. The backdrop is the page background, so the picture reads
+        // as the picker floating over the desktop rather than as a box.
         try capture(
             ZStack {
-                // The wheel is translucent: on a Mac it takes the colour of the
-                // desktop behind it. A dark backdrop shows the same wheel the way
-                // it reads in use.
-                Color(red: 0.055, green: 0.063, blue: 0.078)
+                Color(red: 0.051, green: 0.063, blue: 0.078)
                 RadialView(state: state, previews: environment.previews,
                            choose: { _ in }, page: { _ in }, cancel: {})
             },

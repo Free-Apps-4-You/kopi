@@ -1,7 +1,7 @@
 /* ==========================================================================
    Kopi — project website behaviour.
-   Three small pieces: a mobile menu, a scroll reveal, and a gallery
-   lightbox with keyboard navigation.
+   Four small pieces: a mobile menu, a scroll reveal, a rotating pair of
+   screenshots, and a gallery lightbox with keyboard navigation.
    ========================================================================== */
 (function () {
   'use strict';
@@ -49,6 +49,95 @@
     }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
     revealed.forEach(function (node) { observer.observe(node); });
   }
+
+  /* -------------------------------------------------------------- carousel */
+  /* Two screenshots of the application, one after the other. The rotation
+     stops when the reader asks for less motion, when the tab is in the
+     background, and when the reader presses the pause button. */
+  (function carousel() {
+    var root = document.querySelector('[data-carousel]');
+    if (!root) return;
+
+    var slides = Array.prototype.slice.call(root.querySelectorAll('[data-slide]'));
+    var dots = Array.prototype.slice.call(root.querySelectorAll('[data-slide-dot]'));
+    var caption = root.querySelector('[data-carousel-caption]');
+    var pauseButton = root.querySelector('[data-carousel-pause]');
+    if (slides.length < 2) return;
+
+    var INTERVAL = 1000;
+    var current = 0;
+    var timer = null;
+    var paused = false;
+    var visible = true;
+
+    function show(index) {
+      current = (index + slides.length) % slides.length;
+      slides.forEach(function (slide, position) {
+        slide.classList.toggle('is-active', position === current);
+      });
+      dots.forEach(function (dot, position) {
+        dot.classList.toggle('is-active', position === current);
+        dot.setAttribute('aria-pressed', position === current ? 'true' : 'false');
+      });
+      if (caption) {
+        caption.textContent = slides[current].getAttribute('data-caption') || '';
+      }
+    }
+
+    function stop() {
+      if (timer) { clearInterval(timer); timer = null; }
+    }
+
+    function start() {
+      stop();
+      if (paused || document.hidden || !visible) return;
+      timer = setInterval(function () { show(current + 1); }, INTERVAL);
+    }
+
+    function setPaused(value) {
+      paused = value;
+      if (pauseButton) {
+        pauseButton.classList.toggle('is-paused', paused);
+        pauseButton.setAttribute('aria-label', paused
+          ? 'Play the screenshot rotation'
+          : 'Pause the screenshot rotation');
+      }
+      start();
+    }
+
+    dots.forEach(function (dot, index) {
+      dot.addEventListener('click', function () {
+        show(index);
+        start();
+      });
+    });
+
+    if (pauseButton) {
+      pauseButton.addEventListener('click', function () { setPaused(!paused); });
+    }
+
+    document.addEventListener('visibilitychange', start);
+
+    // Nothing turns while the pictures are off screen.
+    if ('IntersectionObserver' in window) {
+      var seen = new IntersectionObserver(function (entries) {
+        visible = entries[0].isIntersecting;
+        start();
+      }, { threshold: 0.05 });
+      seen.observe(root);
+    }
+
+    // A reader who asked for less motion keeps the first picture and chooses
+    // the second one with the buttons.
+    var reduceMotion = window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      setPaused(true);
+    } else {
+      show(0);
+      start();
+    }
+  })();
 
   /* --------------------------------------------------------------- lightbox */
   var lightbox = document.getElementById('lightbox');
