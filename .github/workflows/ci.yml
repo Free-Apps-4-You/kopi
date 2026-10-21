@@ -60,6 +60,12 @@ jobs:
         run: scripts/build-app.sh
       - name: Verify application signature
         run: codesign --verify --deep --strict dist/Kopi.app
+      - name: Verify application icon
+        run: |
+          test -f dist/Kopi.app/Contents/Resources/Kopi.icns
+          test -f dist/Kopi.app/Contents/Resources/MenuBarTemplate.png
+          icon=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' dist/Kopi.app/Contents/Info.plist)
+          test "$icon" = "Kopi"
       - name: Run packaged application self-check
         run: dist/Kopi.app/Contents/MacOS/Kopi --selfcheck
       - name: Create and verify DMG and application ZIP

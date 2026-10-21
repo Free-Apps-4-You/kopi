@@ -8,6 +8,8 @@
 	<string>Kopi</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.kopi.app</string>
+	<key>CFBundleIconFile</key>
+	<string>Kopi</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>

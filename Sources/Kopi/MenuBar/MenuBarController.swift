@@ -135,7 +135,19 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         return menu
     }
 
+    /// The mark in the menu bar.
+    ///
+    /// It is the same glyph as the application icon, drawn as a template image so
+    /// macOS paints it in the colour of the menu bar and inverts it when the item
+    /// is highlighted. A build without a bundle falls back to the system symbol.
     private static func symbol(_ name: String) -> NSImage? {
+        if let bundled = Bundle.main.image(forResource: "MenuBarTemplate") {
+            // The mark is drawn at thirty-two pixels and shown at sixteen points,
+            // which is the size a menu bar item expects.
+            bundled.size = NSSize(width: 16, height: 16)
+            bundled.isTemplate = true
+            return bundled
+        }
         let image = NSImage(systemSymbolName: name, accessibilityDescription: "Kopi")
         image?.isTemplate = true
         return image

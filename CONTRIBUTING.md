@@ -20,6 +20,24 @@ These scripts build for the current Mac. Downloads are named `Kopi-Intel-Mac`
 or `Kopi-Apple-Silicon-Mac` to match the application's actual architecture;
 release builds run on each processor natively.
 
+## The application icon
+
+The mark in `docs/assets/favicon.svg` is the one source of truth for the icon.
+`scripts/build-icon.sh` turns it into everything macOS needs:
+
+```sh
+scripts/build-icon.sh            # rebuilds Packaging/Kopi.icns from the committed iconset
+scripts/build-icon.sh --refresh  # redraws the iconset from the SVG first
+```
+
+Refreshing needs Google Chrome, which can size SVG output exactly. The iconset in
+`Packaging/AppIcon.iconset` is committed, so a plain build never needs a renderer
+and never depends on one being installed.
+
+The result is the application icon in the bundle, the mark in the menu bar and the
+favicon on the website. Keep the SVG as the source and refresh the iconset when the
+mark changes, so they cannot drift apart.
+
 ## The project website
 
 The site in `docs/` is published by GitHub Pages from the `main` branch. It is

@@ -30,6 +30,7 @@ enum KopiMain {
     /// The run loop is turned by hand rather than through `NSApplication.run`, so the
     /// application is never activated and the user's keyboard and pointer stay where
     /// they are.
+    @MainActor
     private static func renderShowcase(into directory: URL) {
         let application = NSApplication.shared
         application.setActivationPolicy(.accessory)

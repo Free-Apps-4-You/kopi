@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/images/kopi-icon.png" width="120" alt="Kopi">
+
 # Kopi
 
 ### A little less retyping. A lot more flow.

@@ -41,10 +41,21 @@ fi
 # name cannot survive beside the current bundle.
 rm -rf "$root/dist"
 mkdir -p "$bundle/Contents/MacOS"
+mkdir -p "$bundle/Contents/Resources"
 
 cp "$executable" "$bundle/Contents/MacOS/$product"
 cp "$root/Packaging/Info.plist" "$bundle/Contents/Info.plist"
 printf 'APPL????' > "$bundle/Contents/PkgInfo"
+
+# The application icon and the menu bar mark. Both come from the project's SVG.
+if [[ ! -f "$root/Packaging/Kopi.icns" ]]; then
+    echo "error: missing Packaging/Kopi.icns; run scripts/build-icon.sh" >&2
+    exit 1
+fi
+cp "$root/Packaging/Kopi.icns" "$bundle/Contents/Resources/Kopi.icns"
+if [[ -f "$root/Packaging/MenuBarTemplate.png" ]]; then
+    cp "$root/Packaging/MenuBarTemplate.png" "$bundle/Contents/Resources/MenuBarTemplate.png"
+fi
 
 codesign --force --sign - --entitlements "$root/Packaging/Kopi.entitlements" "$bundle"
 
